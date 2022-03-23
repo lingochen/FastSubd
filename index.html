@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+  <nav>
+    <p>Loop/Modified Butterfly</p>
+    <ul>
+      <li id="cube"><a href="#">Cube</a></li>
+      <li id="tetrahedron"><a href="#">Tetrahedron</a></li>
+      <li id="hua"><a href="#">Hua</a></li>
+      <li id="bunny"><a href="#">Bunny</a></li>
+      <li id="fox"><a href="#">Fox</a></li>
+      <li id="pig"><a href="#">Pig</a></li>
+    </ul>
+    <p>Catmull-Clark</p>
+    <ul>
+      <li id="cube2"><a href="#">Cube</a></li>
+      <li id="arrow"><a href="#">Arrow</a></li>
+      <li id="monsterfrog"><a href="#">Monster Frog</a></li>
+      <li id="bigguy"><a href="#">Big Guy</a></li>
+      <li id="pigCC"><a href="#">Pig</a></li>
+      <li id="spot"><a href="#">Spot</a></li>
+    </ul>  
+  </nav>   
+  <main>
+    <div id="selectSubdivision">
+       <label name="triSubd">Loop<input type="radio" id="loop" name="triSubd" value="loop" checked></label>
+       <label name="triSubd">MBFly<input type="radio" id="butterfly" name="triSubd" value="mbfly"></label>
+       <p id="cc">Catmull-Clark</p>
+       <label>0<input type="radio" id="subd0" name="subLevel" value="0" checked></label>
+       <label>1<input type="radio" id="subd1" name="subLevel" value="1"></label>
+       <label>2<input type="radio" id="subd2" name="subLevel" value="2"></label>
+       <label>3<input type="radio" id="subd3" name="subLevel" value="3"></label>
+       <label>4<input type="radio" id="subd4" name="subLevel" value="4"></label>
+       <label>5<input type="radio" id="subd5" name="subLevel" value="5"></label>
+    </div>
+    <canvas id="workspace" width="600" height="600"></canvas>
+  </main>
+  <footer> 
+    <p id="performance"></p>
+    <p id="geometry"></p>
+  </footer>
+ 
+</body>
+
+<script type="module">
+   import {subdivideCC, subdivideMB, subdivideLoop} from './subdivide.js';
+   import {initMain, readFile, setRenderData} from './runner.js';
+   
+   let subdivideFunc;
+   let level;
+   function showTriSubd() {
+      document.getElementById("cc").style.display="none";
+      const elems = document.querySelectorAll('label[name="triSubd"]');
+      for (let elem of elems) {
+         elem.style.display="block";
+      }
+      level = 0;
+      subdivideFunc = subdivideLoop;
+      document.getElementById("loop").checked = true;
+      document.getElementById("subd0").checked = true;
+   }
+   
+   function showCC() {
+      document.getElementById("cc").style.display="block";
+      const elems = document.querySelectorAll('label[name="triSubd"]');
+      for (let elem of elems) {
+         elem.style.display="none";
+      }
+      level = 0;
+      subdivideFunc = subdivideCC;
+      document.getElementById("subd0").checked = true;
+   }
+  
+   const gl = document.getElementById("workspace").getContext("webgl2");
+   initMain(gl);
+   const log = document.getElementById("geometry");
+   const counter = document.getElementById("performance");
+   
+   
+   // select between loop/mbfly
+   let elems = document.querySelectorAll('input[name="triSubd"]');
+   for (let elem of elems) {
+      elem.addEventListener("change", function(evt){
+         if (this.value === "loop") {
+            subdivideFunc = subdivideLoop;
+            doSubdivision(level);
+         }
+         if (this.value === "mbfly") {
+            subdivideFunc = subdivideMB;
+            doSubdivision(level);
+         }
+       });
+   }
+   
+   elems = document.querySelectorAll('input[name="subLevel"]');
+   for (let elem of elems) {
+      elem.addEventListener("change", function(evt){
+         let value = parseInt(this.value);
+         if (value >=0 && value < 6) {
+            level = value;
+            doSubdivision(level);
+         }
+       });
+   }
+    
+   let source;         // to be used for subdivision and rendering purpose
+   function doSubdivision(level) {
+      //source.v.computeValence(()=>{});
+      let subd = source;
+      let text = "";
+      for (let i = 0; i < level; ++i) {
+         let start = Date.now();
+         subd = subdivideFunc(subd);
+         text += "level: " + (i+1) + ", time: " + (Date.now()-start) + "\n";
+         //const sanity = subd.sanityCheck();
+         //console.log("mesh integrity: " + sanity);
+         //console.log(subd.stat());
+      }
+      // now setRenderData
+      let start = Date.now();
+      setRenderData(subd);
+      text += "render: " + (Date.now()-start) + "\n";
+      log.textContent = subd.stat();
+      counter.textContent = text;
+   }
+    
+   document.getElementById("selectSubdivision").style.display = "none";
+   function bindMenu(id, url, triOnly, camera) {
+      let button = document.getElementById(id);
+      button.addEventListener("click", (ev)=>{
+         document.getElementById("selectSubdivision").style.display = "block";
+         if (triOnly) { // triangle subdivision
+            showTriSubd();
+         } else { // polygon subdivision
+            showCC();
+         }
+         readFile(url, triOnly, camera).then((subd)=>{
+            source = subd;
+            log.textContent = subd.stat();
+         });
+       });
+   }
+
+   bindMenu("cube", "/meshes/cube/cube.obj", true, {position: [0, 1, 4]});
+   bindMenu("tetrahedron", "/meshes/tetrahedron.obj", true, {});
+   bindMenu("pig", "/meshes/pig/pig.obj", true, {position: [0, 1, 4]});
+   bindMenu("fox", "/meshes/fox.obj", true, {position: [0, 3, 16]});
+   bindMenu("bunny", "/meshes/bunny.obj", true, {});
+   bindMenu("hua", "/meshes/hua.obj", true, {});
+   
+   bindMenu("cube2", "/meshes/box.obj", false, {position: [0,1,4]});
+   bindMenu("arrow", "/meshes/arrow.obj", false, {});
+   bindMenu("spot", "/meshes/spot/spot_control_mesh.obj", false, {});
+   bindMenu("monsterfrog", "/meshes/monsterfrog.obj", false, {position: [0, 10, 80], zFar: 110});
+   bindMenu("pigCC", "/meshes/pig/pig_quad_controlmesh.obj", false, {});
+   bindMenu("bigguy", "/meshes/bigguy.obj", false, {position: [0, 8, 25]});
+      //readFile("/meshes/box.obj");
+      //readFile("/meshes/box2.obj");
+
+</script>
+</html>
