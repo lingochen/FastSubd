@@ -1,8 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
+<style>
+  .container {
+    display: inline-flex;
+    flex-wrap: wrap;
+
+  }
+  .stack-direction {
+    flex-direction: row;
+  }
+  .hori {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  main {
+    border: 1px solid black;
+  }
+  nav ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  @media screen and (max-width: 800px) {
+    .stack-direction {
+      flex-direction: column;
+    }
+    ul > li {
+      display: inline-block;
+    }
+    nav, main {
+    }
+  }
+</style>
 </head>
 <body>
+ <section class="container stack-direction">
   <nav>
     <p>Loop/Modified Butterfly</p>
     <ul>
@@ -25,10 +59,10 @@
     </ul>  
   </nav>   
   <main>
-    <div id="selectSubdivision">
+    <div id="selectSubdivision" class="hori">
        <label name="triSubd">Loop<input type="radio" id="loop" name="triSubd" value="loop" checked></label>
        <label name="triSubd">MBFly<input type="radio" id="butterfly" name="triSubd" value="mbfly"></label>
-       <p id="cc">Catmull-Clark</p>
+       <label id="cc">Catmull-Clark</label>
        <label>0<input type="radio" id="subd0" name="subLevel" value="0" checked></label>
        <label>1<input type="radio" id="subd1" name="subLevel" value="1"></label>
        <label>2<input type="radio" id="subd2" name="subLevel" value="2"></label>
@@ -38,6 +72,7 @@
     </div>
     <canvas id="workspace" width="600" height="600"></canvas>
   </main>
+ </section>
   <footer> 
     <p id="performance"></p>
     <p id="geometry"></p>
@@ -114,7 +149,7 @@
       for (let i = 0; i < level; ++i) {
          let start = Date.now();
          subd = subdivideFunc(subd);
-         text += "level: " + (i+1) + ", time: " + (Date.now()-start) + "\n";
+         text += "(level: " + (i+1) + ", time: " + (Date.now()-start) + ")\n";
          //const sanity = subd.sanityCheck();
          //console.log("mesh integrity: " + sanity);
          //console.log(subd.stat());
@@ -122,16 +157,16 @@
       // now setRenderData
       let start = Date.now();
       setRenderData(subd);
-      text += "render: " + (Date.now()-start) + "\n";
+      text += "(computeRender: " + (Date.now()-start) + ")\n";
       log.textContent = subd.stat();
       counter.textContent = text;
    }
     
-   document.getElementById("selectSubdivision").style.display = "none";
+   document.getElementById("selectSubdivision").style.visibility = "hidden";
    function bindMenu(id, url, triOnly, camera) {
       let button = document.getElementById(id);
       button.addEventListener("click", (ev)=>{
-         document.getElementById("selectSubdivision").style.display = "block";
+         document.getElementById("selectSubdivision").style.visibility = "visible";
          if (triOnly) { // triangle subdivision
             showTriSubd();
          } else { // polygon subdivision
