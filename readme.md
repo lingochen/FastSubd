@@ -1,4 +1,4 @@
-Simple and Fast Subdivision [Demo](https://rawcdn.githack.com/lingochen/FastSubd/04fba52d917413c4d84c17c760741c878605e2e4/index.html).
+Simple and Fast Subdivision [Demo](https://rawcdn.githack.com/lingochen/FastSubd/df6e2416af7a60f636a1eb68c47132e85b6f2485/index.html).
 
 Inspired by "A HalfEdge Refinement Rule for Parallel Catmull-Clark Subdivision" by Jonathan Dupuy, Kenneth Vanhoey
 
