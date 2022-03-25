@@ -13,6 +13,7 @@
   .hori {
     display: flex;
     flex-direction: row;
+    justify-content: space-around;
     flex-wrap: wrap;
   }
   main {
@@ -60,15 +61,19 @@
   </nav>   
   <main>
     <div id="selectSubdivision" class="hori">
+      <div class="hori">
        <label name="triSubd">Loop<input type="radio" id="loop" name="triSubd" value="loop" checked></label>
        <label name="triSubd">MBFly<input type="radio" id="butterfly" name="triSubd" value="mbfly"></label>
        <label id="cc">Catmull-Clark</label>
+      </div>
+      <div>
        <label>0<input type="radio" id="subd0" name="subLevel" value="0" checked></label>
        <label>1<input type="radio" id="subd1" name="subLevel" value="1"></label>
        <label>2<input type="radio" id="subd2" name="subLevel" value="2"></label>
        <label>3<input type="radio" id="subd3" name="subLevel" value="3"></label>
        <label>4<input type="radio" id="subd4" name="subLevel" value="4"></label>
        <label>5<input type="radio" id="subd5" name="subLevel" value="5"></label>
+      </div>
     </div>
     <canvas id="workspace" width="600" height="600"></canvas>
   </main>
