@@ -486,7 +486,7 @@ class TriMesh extends BaseMesh {
       for (let i = 0; i < 3; ++i) {
          let next = (i+1) % 3;
          if (freeEdges[i] < 0 && freeEdges[next] < 0) {
-            this.spliceAdjacent(freeEdges[i], freeEdges[next]);
+            this.makeAdjacent(freeEdges[i], freeEdges[next]);
          }
       }
       

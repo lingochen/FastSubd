@@ -589,7 +589,7 @@ class BaseMesh {
     * @returns {integer} - the gap index, or -1 if not founded.
     */
    findFreeInEdge(inner_next, inner_prev) {
-      const hEdges = this._hEdges;
+      const hEdges = this.h;
       const startingFrom = hEdges.pair(inner_next);
       const andBefore = inner_prev;
       if (andBefore !== startingFrom) {
@@ -607,8 +607,8 @@ class BaseMesh {
    }
 
 
-   spliceAdjacent(inEdge, outEdge) {
-      const hEdges = this._hEdges;
+   makeAdjacent(inEdge, outEdge) {
+      const hEdges = this.h;
       if (hEdges.next(inEdge) === outEdge) {   // adjacency is already correct.
          return true;
       }

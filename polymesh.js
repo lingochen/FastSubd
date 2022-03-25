@@ -372,7 +372,7 @@ class PolyMesh extends BaseMesh {
             nextIndex = 0;
          }
 
-         if (!this.spliceAdjacent(halfLoop[i], halfLoop[nextIndex])) {
+         if (!this.makeAdjacent(halfLoop[i], halfLoop[nextIndex])) {
             this._unwindNewEdges(newPolygon, newEdges, halfLoop);
             // The polygon would introduce a non-manifold condition.
             console.log("non-manifold condition, cannot splice");
