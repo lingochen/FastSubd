@@ -1,5 +1,5 @@
 # Exported from Wings 3D 2.2.4
-mtllib arrow.mtl
+#mtllib arrow.mtl
 o cone1
 #49 vertices, 49 faces
 v 1.00000000 5.86716735 -2.1705068e-16

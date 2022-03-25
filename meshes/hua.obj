@@ -1,7 +1,7 @@
 # loop
 # This file uses centimeters as units for non-parametric coordinates.
 
-mtllib Abstract2Tris.mtl
+#mtllib Abstract2Tris.mtl
 g default
 v -0.331397 0.297105 -0.000000
 v -1.568470 0.297105 0.000000

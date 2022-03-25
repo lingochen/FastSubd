@@ -1,8 +1,8 @@
-mtllib simple.mtl
-usemtl white
+#mtllib simple.mtl
+#usemtl white
 
 # The units used in this file are centimeters.
-g default
+#g default
 v 3.347106 4.317614 4.212092
 v 3.182192 -1.674531 -2.225389
 v 6.737145 7.616683 -0.933078

@@ -12,6 +12,7 @@
       <li id="bunny"><a href="#">Bunny</a></li>
       <li id="fox"><a href="#">Fox</a></li>
       <li id="pig"><a href="#">Pig</a></li>
+      <li id="spotTri"><a href="#">Spot</a></li>
     </ul>
     <p>Catmull-Clark</p>
     <ul>
@@ -143,21 +144,20 @@
        });
    }
 
-   bindMenu("cube", "/meshes/cube/cube.obj", true, {position: [0, 1, 4]});
-   bindMenu("tetrahedron", "/meshes/tetrahedron.obj", true, {});
-   bindMenu("pig", "/meshes/pig/pig.obj", true, {position: [0, 1, 4]});
+   bindMenu("cube", "/meshes/cube/cube.obj", true, {position: [0, 1, 3]});
+   bindMenu("tetrahedron", "/meshes/tetrahedron.obj", true, {position: [0, 1, 3]});
+   bindMenu("pig", "/meshes/pig/pig.obj", true, {position: [0, 1, 2]});
    bindMenu("fox", "/meshes/fox.obj", true, {position: [0, 3, 16]});
-   bindMenu("bunny", "/meshes/bunny.obj", true, {});
+   bindMenu("bunny", "/meshes/bunny.obj", true, {position: [0, 1, 2]});
    bindMenu("hua", "/meshes/hua.obj", true, {});
+   bindMenu("spotTri", "/meshes/spot/spot_tri.obj", true, {position: [0, 1, 3]});
    
-   bindMenu("cube2", "/meshes/box.obj", false, {position: [0,1,4]});
+   bindMenu("cube2", "/meshes/box.obj", false, {position: [0,1,3]});
    bindMenu("arrow", "/meshes/arrow.obj", false, {});
-   bindMenu("spot", "/meshes/spot/spot_control_mesh.obj", false, {});
+   bindMenu("spot", "/meshes/spot/spot_control_mesh.obj", false, {position: [0, 1, 3]});
    bindMenu("monsterfrog", "/meshes/monsterfrog.obj", false, {position: [0, 10, 80], zFar: 110});
-   bindMenu("pigCC", "/meshes/pig/pig_quad_controlmesh.obj", false, {});
+   bindMenu("pigCC", "/meshes/pig/pig_quad_controlmesh.obj", false, {position: [0, 1, 2]});
    bindMenu("bigguy", "/meshes/bigguy.obj", false, {position: [0, 8, 25]});
-      //readFile("/meshes/box.obj");
-      //readFile("/meshes/box2.obj");
 
 </script>
 </html>
