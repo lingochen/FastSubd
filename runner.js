@@ -1,5 +1,5 @@
 /**
- * implicit assumed twgl is include in index.html
+ * setting up the canvas for rendering
  * 
  */
 
@@ -101,19 +101,7 @@ function initMain(gl) {
    
    info.buffer = gl.createBuffer();
  
-   //
-   // and because those names match the attributes in our vertex
-   // shader we can pass it directly into `createBufferInfoFromArrays`
-   // from the article "less code more fun".
  
-   // create a buffer for each array by calling
-   // gl.createBuffer, gl.bindBuffer, gl.bufferData
-   //const bufferInfo = twgl.createBufferInfoFromArrays(gl, data);
-   //info.buffer = glUtil.createPullBufferInfo(info.gl, data.pullVertex);
-   
-   // fills out a vertex array by calling gl.createVertexArray, gl.bindVertexArray
-   // then gl.bindBuffer, gl.enableVertexAttribArray, and gl.vertexAttribPointer for each attribute
-   //const vao = twgl.createVAOFromBufferInfo(gl, meshProgramInfo, bufferInfo);
 }
 
  
