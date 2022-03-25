@@ -34,7 +34,9 @@ const PixelInternalFormatK = {
    RGBA32I: 0x8D82,
    RG16F: 0x822F,
    RGB16F: 0x881B,
+   RG32F: 0x8230,
    RGB32F: 0x8815,
+   RGBA32F: 0x8814,
 }
 Object.freeze(PixelInternalFormatK);
 
@@ -337,12 +339,15 @@ class Float32PixelArray extends PixelArray {
       switch (numberOfChannel) {
         case 3:
            break;
+        case 2:
+           format = PixelFormatK.RG;
+           internalFormat = PixelInternalFormatK.RG32F;
+           break;
         case 4:
            format = PixelFormatK.RGBA;
            internalFormat = PixelInternalFormatK.RGBA32F;
            break;
         case 1:
-        case 2:
         default:
            console.log("Unsupport # of pixel channel: " + numberOfChannel);
       }
@@ -421,6 +426,7 @@ class TexCoordPixelArray3D {
       this._uvs = [];
       for (let i = 0; i < uvChannel; ++i) {
           this._uvs.push( new Float16PixelArray(2, 2, allocationSize) );   // structSize 2
+          //this._uvs.push( new Float32PixelArray(2, 2, allocationSize) );   // structSize 2
       }
    }
    
