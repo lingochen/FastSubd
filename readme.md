@@ -1,9 +1,10 @@
-Simple and Fast Subdivision [Demo](https://rawcdn.githack.com/lingochen/FastSubd/df6e2416af7a60f636a1eb68c47132e85b6f2485/index.html).
+Simple and Fast Subdivision [Demo](https://rawcdn.githack.com/lingochen/FastSubd/671585e620c85f16d387511680fd7997ac2f140e/index.html).
 
-Inspired by "A HalfEdge Refinement Rule for Parallel Catmull-Clark Subdivision" by Jonathan Dupuy, Kenneth Vanhoey
+Inspired by [A HalfEdge Refinement Rule for Parallel Catmull-Clark Subdivision](https://onrendering.com/) by Jonathan Dupuy, Kenneth Vanhoey
 
 Major difference is that instead of using quad after one subdivision, we still use the same halfEdge representation for subdivision.
 
-Loop and Modified Butterfly subdivision use DirectedEdge instead of HalfEdge, but the DirectedEdge has the same api as HalfEdge.
+The same HalfEdge representation can be used for other subdivision schemes.
 
+Loop and Modified Butterfly subdivision use an optimized triangle repsentation, DirectedEdge, but the DirectedEdge has the same API as HalfEdge.
 
