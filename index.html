@@ -14,15 +14,22 @@
     flex-wrap: wrap;
 
   }
+  
   .stack-direction {
     flex-direction: row;
   }
+  
   .hori {
     display: flex;
     flex-direction: row;
     justify-content: space-around;
     flex-wrap: wrap;
   }
+  
+  .hide {
+    visibility: hidden;
+  }
+  
   main {
     margin: 8px;
     border: 1px solid black;
@@ -115,7 +122,7 @@
     </ul>  
   </nav>   
   <main>
-    <div id="selectSubdivision" class="hori">
+    <div id="selectSubdivision" class="hori hide">
       <div class="hori">
        <label name="triSubd"><input type="radio" id="loop" name="triSubd" value="loop" checked><span>Loop</span></label>
        <label name="triSubd"><input type="radio" id="butterfly" name="triSubd" value="mbfly"><span>MBFly</span></label>
@@ -222,11 +229,11 @@
       counter.textContent = text;
    }
     
-   document.getElementById("selectSubdivision").style.visibility = "hidden";
+
    function bindMenu(id, url, triOnly, camera) {
       let button = document.getElementById(id);
       button.addEventListener("click", (ev)=>{
-         document.getElementById("selectSubdivision").style.visibility = "visible";
+         document.getElementById("selectSubdivision").classList.add("hide");
          if (triOnly) { // triangle subdivision
             showTriSubd();
          } else { // polygon subdivision
@@ -235,6 +242,7 @@
          readFile(url, triOnly, camera).then((subd)=>{
             source = subd;
             log.textContent = subd.stat();
+            document.getElementById("selectSubdivision").classList.remove("hide");
          });
        });
    }
