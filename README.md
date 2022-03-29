@@ -10,9 +10,9 @@ Any feedback, problem, remark or question about the code, file an issue or conta
 
 
 ## Benefits
-Simple to implemented.
+Simple to implemented and used.
 
-Tiny amount of data. Since compute improve faster than bandwidth, we want to optimize for data size.
+Subdivision surface use tiny amount of data. Since compute improve faster than bandwidth for the forseeable future, we want to optimize for data size.
 
 Perfectly suit for web based workflow.
 
@@ -30,7 +30,7 @@ Loop and Modified Butterfly subdivision use an optimized triangle data structure
 ## Postmortem
 Subdivision is memory access bound instead of compute bound. Rearrange data, use share data structure, and compress data to improve performance.
 
-The algorithm is pretty similar to OpenMesh's subdivide.
+[OpenMesh](https://www.openmesh.org)'s subdivide is coventional because of it flexible kernel. Our implementation is more efficient and can be made more Parallel. However, subdivide is not the bottleneck, memory access is.
 
 Use mesh shader or compute shader to expand data in chip to really improve performance.
 
@@ -43,3 +43,5 @@ Support Boundary and Crease.
 Quad/Tri subdivision scheme.
 
 Displaced Subdivision Surface.
+
+GLSL shader.
