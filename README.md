@@ -24,20 +24,22 @@ Major difference is that instead of using quad after one subdivision, we still u
 
 The same HalfEdge representation can be used for other subdivision schemes.
 
-Loop and Modified Butterfly subdivision use an optimized triangle repsentation, DirectedEdge, but the DirectedEdge has the same API as HalfEdge.
+Loop and Modified Butterfly subdivision use an optimized triangle data structure, DirectedEdge, with same API as HalfEdge.
 
 
-## Performance
+## Postmortem
 Subdivision is memory access bound instead of compute bound. Rearrange data, use share data structure, and compress data to improve performance.
 
-Use mesh shader or compute shader to expand data in chip to improve performance.
+The algorithm is pretty similar to OpenMesh's subdivide.
+
+Use mesh shader or compute shader to expand data in chip to really improve performance.
 
 
 ## TODO
-Loop subdivision for PolyMesh halfEdge.
+Loop subdivision using PolyMesh halfEdge.
 
 Support Boundary and Crease.
 
 Quad/Tri subdivision scheme.
 
-Displaced Subdivision Surface. 
+Displaced Subdivision Surface.
