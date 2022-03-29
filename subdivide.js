@@ -376,8 +376,8 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    (origin vertex using 3/4 coefficient)
  */
 const mbCoeffK = [[],[], [],
-                  [5/12, -1/12, -1/12],
-                  [3/8, 0, -1/8, 0]];
+                  [5/12, -1/12, -1/12, 3/4],
+                  [3/8, 0, -1/8, 0, 3/4]];
 
 function computeButterflyCoefficient(valence) {
    // assume valence >= 3.
@@ -390,11 +390,16 @@ function computeButterflyCoefficient(valence) {
       for (let val = mbCoeffK.length; val <= valence; ++val) {
          let coeff = [];
          mbCoeffK.push( coeff );
+         let sum = 0;
          for (let j = 0; j < val; ++j) {
-            let temp = (2 * Math.PI * j) / val;
+            const invVal = 1 / val;
+            let temp = (2 * Math.PI * j) * invVal;
             let value = 0.25 + Math.cos( temp ) + 0.5 * Math.cos(2*temp);
-            coeff.push( value / val);
+            value *= invVal;
+            coeff.push( value );
+            sum += value;
          }
+         coeff.push( 1.0 - sum );
       }
    } 
 }
@@ -456,21 +461,23 @@ const subdivideMB = (()=> {
             
             vec3a.scaleAndAdd(midEdge, 0, src, hEdges.position(right)*3, aK);
          } else if (!val0 && !val1) {   // case 3, average of both extraodinary vertices
-            vec3.scale(midEdge, 0, src, hEdges.position(left)*3, 3/4);
-            vec3a.scaleAndAdd(midEdge, 0, src, hEdges.position(right)*3, 3/4);
+            vec3.scale(midEdge, 0, src, hEdges.position(left)*3, mbCoeffK[valLeft][valLeft]);
+            vec3a.scaleAndAdd(midEdge, 0, src, hEdges.position(right)*3, mbCoeffK[valRight][valRight]);
             computeExtraodinary(midEdge, left,  mbCoeffK[valLeft]);
             computeExtraodinary(midEdge, right,  mbCoeffK[valRight]);
             vec3a.scale(midEdge, 0, 1/2);
-         } else { // case 2, use the extraodinary vertex
+         } else { // case 2, use the lone extraodinary vertex
             let v = leftV;
+            let val = valLeft;
             let hEdge = left;
             let coeff = mbCoeffK[valLeft];
             if (val0) {
                v = rightV;
+               val = valRight;
                hEdge = right;
                coeff = mbCoeffK[valRight];
             } 
-            vec3.scale(midEdge, 0, src, hEdges.position(hEdge)*3, 3/4);
+            vec3.scale(midEdge, 0, src, hEdges.position(hEdge)*3, coeff[val]);
             computeExtraodinary(midEdge, hEdge, coeff);
          } // TODO: boundary edge.
          
