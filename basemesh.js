@@ -520,13 +520,13 @@ class BaseMesh {
    
       
    makePullBuffer(gl) {
-      this._hEdges.computeNormal(this._vertices);
+      this.h.computeNormal(this._vertices);
       
-      const pullVertex = this._faces.makePullBuffer(this._vertices);
+      const pullVertex = this.f.makePullBuffer(this._vertices);
    
-      const positionTexture = this._vertices.createPositionTexture(gl);
-      const attrsTexture = this._hEdges.createAttributeTexture(gl);
-      const uvsTexture = this._hEdges.createUvsTexture(gl);
+      const positionTexture = this.v.createPositionTexture(gl);
+      const attrsTexture = this.h.createAttributeTexture(gl);
+      const uvsTexture = this.h.createUvsTexture(gl);
       
       const materials = [];
       for (let [handle, count] of this._material.used) {
@@ -569,10 +569,11 @@ class BaseMesh {
    addVertex(inPt, inOffset=0) {
       // Todo: check free first
 
+      const v = this.v;
       // allocated from both pt and vertex
-      const vertex = this._vertices.alloc();
-      this._vertices.setHalfEdge(vertex, -1);
-      this._vertices.copyPt(vertex, inPt, inOffset);
+      const vertex = v.alloc();
+      v.setHalfEdge(vertex, -1);
+      v.copyPt(vertex, inPt, inOffset);
       return vertex;
    }
    
@@ -640,20 +641,20 @@ class BaseMesh {
    
    
    sanityCheck() { 
-      const vOk = this._vertices.sanityCheck();
-      const hOk = this._hEdges.sanityCheck();
-      const fOk = this._faces.sanityCheck();
+      const vOk = this.v.sanityCheck();
+      const hOk = this.h.sanityCheck();
+      const fOk = this.f.sanityCheck();
       return (vOk && hOk && fOk);
    }
    
    stat() {
-      let status = this._vertices.stat();
-      status += this._hEdges.stat();
-      return (status + this._faces.stat());
+      let status = this.v.stat();
+      status += this.h.stat();
+      return (status + this.f.stat());
    }
    
    isEmpty() {
-      return (this._vertices.length() === 0) && (this._faces.length() === 0);
+      return (this.v.length() === 0) && (this.f.length() === 0);
    }
 };
 
