@@ -6,7 +6,7 @@ Any feedback, problem, remark or question about the code, file an issue or conta
 
 
 ## Screenshots
-![Spot no subdivision](./media/spot_subd0.png) ![Spot subdivision level 1](./media/spot_subd1.png)
+![Spot no subdivision](media/spot_subd0.png) ![Spot subdivision level 1](media/spot_subd1.png)
 
 
 ## Benefits
@@ -35,13 +35,5 @@ Subdivision is memory access bound instead of compute bound. Rearrange data, use
 Use mesh shader or compute shader to expand data in chip to really improve performance.
 
 
-## TODO
-Loop subdivision using PolyMesh halfEdge.
-
-Support Boundary and Crease.
-
-Quad/Tri subdivision scheme.
-
-Displaced Subdivision Surface.
-
-GLSL shader.
+## Roadmap
+[Roadmap](docs/roadmap.md)
