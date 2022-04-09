@@ -274,6 +274,117 @@ const subdivideCC = (()=>{
 
 
 
+const subdivideTriPoly = (source, refineEdge, refineVertex)=>{
+   // 
+   // each wEdge subdivide to 4 wEdge. 
+   // Pro: simple indexing
+   // Con: wasted hEdges on Boundary Edge.
+   //
+   // each face subdivide to the number of edges. ie 5 edges face to 5 quad.
+   // each wedge is subdivide to 4 wedge.
+   //                           A     6 || 7         B
+   //        1                          || 
+   //     ----->      subdivide     5---->--->1
+   //     <-----        ->          4<---<----0
+   //        0                          || 
+   //                           B     3 || 2         A
+   //
+   function subdivideFace(subd, source) {
+      const computeIndices = (part, hEdge)=> {
+         const isOdd = HalfEdgeK.isOdd(hEdge);
+         const wEdge = HalfEdgeK.wEdge(hEdge);
+         const base = wEdge*8; // every wedge is expand by 4 wedges (2*halfEdge)
+         if (isOdd) {   // (5(2),6(3),7(3),1(0)),
+            part[0] = base + 5;
+            part[1] = base + 6;
+            part[2] = base + 7;
+            part[3] = base + 1;
+         } else {       // (0(0), 2(1), 3(1), 4(2)),
+            part[0] = base;
+            part[1] = base + 2;
+            part[2] = base + 3;
+            part[3] = base + 4;
+         }
+         return wEdge;
+      }
+      const linkTri = (subd, hEdge0, hEdge1, hEdge2, faceId, material)=>{ // linkNext triFace
+         subd.h.linkNext(hEdge0, hEdge1);
+         subd.h.setFace(hEdge0, faceId);
+         subd.h.linkNext(hEdge1, hEdge2);
+         subd.h.setFace(hEdge1, faceId);
+         subd.h.linkNext(hEdge2, hEdge0);
+         subd.h.setFace(hEdge2, faceId);
+         // face just point to any halfEdge
+         subd.f.setHalfEdge(faceId, hEdge0);
+         subd.f._setMaterial(faceId, material);       
+      }
+
+      let faceId = 0;
+      // cut corners, since we guaranteed to be triangle, we can compute the 3 edges directly
+      const expand = [[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]];
+      const edgesMid = [-1, -1, -1]; 
+      for (let face of source.f) {
+         let material = source.f.material(face);
+         let count = 0;
+         for (let hEdge of source.f.halfEdgeIter(face)) { // each hEdge becomes 4 hEdges.
+            if (count >= 3) {
+               throw("not a triangle in a triangle polymesh, faceID:" + face);
+            }
+            let part = expand[count];
+            const wEdge = computeIndices(part, hEdge);
+            // update vertex(pt?), (origin, wEdgeId, faceEdgeId, wEdgeId), cut corner triangle.
+            subd.h.setOrigin(part[0],  source.h.origin(hEdge));
+            let mid = source.v.lengthPt() + wEdge;
+            subd.h.setOrigin(part[1], mid);
+            //subd.h.setOrigin(part[2], source.v.lengthPt() + face);
+            subd.h.setOrigin(part[3], mid);
+            edgesMid[count] = mid;
+            count++;
+         }
+         // fix the corner edges.
+         subd.h.setOrigin(expand[0][2], edgesMid[2]);
+         subd.h.setOrigin(expand[1][2], edgesMid[0]);
+         subd.h.setOrigin(expand[2][2], edgesMid[1]);
+         // now link the 4 triangles, 
+         linkTri(subd, expand[0][0], expand[0][1], expand[2][3], faceId++, material);
+         linkTri(subd, expand[1][0], expand[1][1], expand[0][3], faceId++, material);
+         linkTri(subd, expand[2][0], expand[2][1], expand[1][3], faceId++, material);
+         linkTri(subd, expand[0][2], expand[1][2], expand[2][2], faceId++, material);
+         subd.f._materialAddRef(material, 4);
+      }
+   }
+   
+   function computeSubdivideMid(hEdge) {
+      return hEdge*4 + 2;
+   }
+
+   function computeSubdividehEdge(hEdge) {
+      return hEdge * 4 + (HalfEdgeK.isOdd(hEdge)? 1 : 0);
+   }
+   
+   const subd = new PolyMesh(source._material.depot);
+   subd.v._valenceMax = source.v.valenceMax();
+   
+   // preallocated enough points to next subdivision level, 
+   subd.v._allocEx(source.v.length() + source.h.lengthW());
+   // preallocated next level of the wEdges/Faces.
+   subd.h._allocEx(source.h.length()*2);   // *4, but hEdge already *2.
+   subd.f._allocEx(source.f.length() * 4);
+
+   // add/refine middle edge points.
+   refineEdge(subd, source, computeSubdivideMid);
+   // copy and setup vertex's hEdge
+   refineVertex(subd, source, computeSubdividehEdge);
+   
+   // fixed-up the wEdges, Faces, and vertex connection.
+   subdivideFace(subd, source);
+   // subdivideHole(subd, source);
+   
+   return subd;
+};
+
+
+
 
 const subdivideTri = (source, refineEdge, refineVertex)=>{
    /**
@@ -342,6 +453,16 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    
    }
    
+   function computeSubdivideMid(hEdge) {
+      const [face, index] = DirectedEdgeArray.faceAndIndex(left);
+      return face*3*4 + index*3+1;  
+   }
+   
+   function computeSubdividehEdge(hEdge) {
+      const [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
+      return (face*3*4) + (index*3);
+   }
+   
    const subd = new TriMesh(source._material.depot);
    subd.v._valenceMax = source.v.valenceMax();
    
@@ -353,9 +474,9 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    subd.f._allocEx(source.f.length() * 4);
 
    // add/refine middle edge points.
-   refineEdge(subd, source);
+   refineEdge(subd, source, computeSubdivideMid);
    // copy and setup vertex's hEdge
-   refineVertex(subd, source);
+   refineVertex(subd, source, computeSubdividehEdge);
    
    // fixed-up the wEdges, Faces, and vertex connection.
    subdivideFace(subd, source);
@@ -415,7 +536,7 @@ const subdivideMB = (()=> {
    const dK = wK;
    const stencil = [bK, cK, dK, cK];
  
-   function refineEdge(subd, source) {
+   function refineEdge(subd, source, computeSubdivideMid) {
       function computeExtraodinary(midEdge, current, coeff) {
          // iterated through the extradinary vertex
          let i = 0;
@@ -484,15 +605,14 @@ const subdivideMB = (()=> {
          // copy over
          vec3.copy(dest, (offset + wEdge) * 3, midEdge, 0); 
          // and setup outEdge pointer
-         let [face, index] = DirectedEdgeArray.faceAndIndex(left);
-         subd.v.setHalfEdge(offset+wEdge, face*3*4 + index*3+1);
+         subd.v.setHalfEdge(offset+wEdge, computeSubdivideMid(left));
          subd.v.setValence(offset+wEdge, 6);                         // newly create valence is always 6, unless opposite side is boundary.
          
          // copy left(even) and right(odd) attribute, and compute new one.
          const aTable = [5, 8, 2];
          const bTable = [10, 11, 9];
          for (let hEdge of [left, right]) {
-            [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
+            let [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
             attr.init(hEdge);
             face = face*3*4;
             let indexE = index * 3;
@@ -506,7 +626,7 @@ const subdivideMB = (()=> {
       }
    }
 
-   function refineVertex(subd, source) {
+   function refineVertex(subd, source, computeSubdividehEdge) {
       const src = source.v.positionBuffer();
       const dest = subd.v.positionBuffer();
 
@@ -515,8 +635,7 @@ const subdivideMB = (()=> {
          vec3.copy(dest, vertex*3, src, vertex*3);
 
          const hEdge = source.v.halfEdge(vertex);
-         const [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
-         subd.v.setHalfEdge(vertex, face*3*4+index*3);
+         subd.v.setHalfEdge(vertex, computeSubdividehEdge(hEdge));
          subd.v.setValence(vertex, source.v.valence(vertex));    // valence is the same for original vertex
       }
    }
@@ -524,7 +643,11 @@ const subdivideMB = (()=> {
 
    return function(source) {
       computeButterflyCoefficient(source.v.valenceMax());
-      return subdivideTri(source, refineEdge, refineVertex);
+      if (source instanceof TriMesh) {
+         return subdivideTri(source, refineEdge, refineVertex);
+      } else {
+         return subdivideTriPoly(source, refineEdge, refineVertex);
+      }
    }
 
 })();
@@ -532,7 +655,7 @@ const subdivideMB = (()=> {
 
 const subdivideLoop = (()=>{
 
-   function refineEdge(subd, source) {
+   function refineEdge(subd, source, computeSubdivideMid) {
       const src = source.v.positionBuffer();
       const dest = subd.v.positionBuffer();
       const destV = subd.v;
@@ -557,8 +680,7 @@ const subdivideLoop = (()=>{
          // copy over
          vec3.copy(dest, (offset + wEdge) * 3, midEdge, 0); 
          // and setup outEdge pointer
-         let [face, index] = DirectedEdgeArray.faceAndIndex(left);
-         destV.setHalfEdge(offset+wEdge, face*3*4 + index*3+1);
+         destV.setHalfEdge(offset+wEdge, computeSubdivideMid(left));
          destV.setValence(offset+wEdge, 6);                         // newly create valence is always 6, unless opposite side is boundary.
 
          
@@ -566,7 +688,7 @@ const subdivideLoop = (()=>{
          const aTable = [5, 8, 2];
          const bTable = [10, 11, 9];
          for (let hEdge of [left, right]) {
-            [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
+            let [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
             attr.init(hEdge);
             face = face*3*4;
             let indexE = index * 3;
@@ -580,7 +702,7 @@ const subdivideLoop = (()=>{
       }
    }
    
-   function refineVertex(subd, source) {
+   function refineVertex(subd, source, computeSubdividehEdge) {
       const src = source.v.positionBuffer();
       const dest = subd.v.positionBuffer();
       const srchEdges = source.h;
@@ -605,15 +727,18 @@ const subdivideLoop = (()=>{
          vec3.copy(dest, vertex*3, pt, 0);
 
          const hEdge = srcV.halfEdge(vertex);
-         const [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
-         subd.v.setHalfEdge(vertex, face*3*4+index*3);
+         subd.v.setHalfEdge(vertex, computeSubdividehEdge(hEdge));
          subd.v.setValence(vertex, srcV.valence(vertex));         // valence of the original vertex don't change
       }
    }
    
    return function(source) {
-      return subdivideTri(source, refineEdge, refineVertex);
-   }
+         if (source instanceof TriMesh) {
+            return subdivideTri(source, refineEdge, refineVertex);
+         } else {
+            return subdivideTriPoly(source, refineEdge, refineVertex);
+         }
+      }
 })();
 
 

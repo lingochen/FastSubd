@@ -154,7 +154,7 @@
    
    let subdivideFunc;
    let level;
-   function showTriSubd() {
+   function showTriSubd(triFlag) {
       document.getElementById("cc").style.display="none";
       const elems = document.querySelectorAll('label[name="triSubd"]');
       for (let elem of elems) {
@@ -231,15 +231,16 @@
    }
     
 
-   function bindMenu(id, url, triOnly, camera) {
+   function bindMenu(id, url, triFlag, camera) {
       let button = document.getElementById(id);
       button.addEventListener("click", (ev)=>{
          document.getElementById("selectSubdivision").classList.add("hide");
-         if (triOnly) { // triangle subdivision
-            showTriSubd();
+         if (triFlag) { // triangle subdivision
+            showTriSubd(triFlag);
          } else { // polygon subdivision
             showCC();
          }
+         let triOnly = (triFlag === true) || (triFlag === 1);
          readFile(url, triOnly, camera).then((subd)=>{
             source = subd;
             log.textContent = subd.stat();
@@ -250,7 +251,7 @@
    }
 
    bindMenu("cube", "./meshes/cube/cube.obj", true, {position: [0, 1, 3]});
-   bindMenu("tetrahedron", "./meshes/tetrahedron.obj", true, {position: [0, 1, 3]});
+   bindMenu("tetrahedron", "./meshes/tetrahedron.obj", 2, {position: [0, 1, 3]});
    bindMenu("pig", "./meshes/pig/pig.obj", true, {position: [0, 1, 2]});
    bindMenu("fox", "./meshes/fox.obj", true, {position: [0, 3, 16]});
    bindMenu("bunny", "./meshes/bunny.obj", true, {position: [0, 1, 2]});
