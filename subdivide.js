@@ -454,7 +454,7 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    }
    
    function computeSubdivideMid(hEdge) {
-      const [face, index] = DirectedEdgeArray.faceAndIndex(left);
+      const [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
       return face*3*4 + index*3+1;  
    }
    
