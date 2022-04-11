@@ -1,11 +1,21 @@
-Loop/MBFly subdivision using PolyMesh halfEdge. @done(2022/04/09) except for attributes, which needs to be refactored.
+- Loop/MBFly subdivision using PolyMesh halfEdge. @done(2022/04/09) 
+     - except for attributes, which needs to be refactored.
+     - reuse attribute like vertex.
 
-Support Boundary and Crease, investigated discontinuity of attributes.
+- Holes management in PolyMesh/TriMesh. (why? easier to select boundary edges as group)
+     - add HoleArray handling.
+     - subdivide holes handling 
 
-webworker parallel subidivision support.
+- Support Boundary and Crease, investigated discontinuity of attributes.
+     - boundary edge
+     - crease edge/vertex
 
-Displaced Subdivision Surface.
+- properly account for unused slot.
 
-GLSL shader.
+- webworker parallel subidivision support.
 
-Quad/Tri subdivision scheme
+- Displaced Subdivision Surface.
+
+- GLSL shader.
+
+- Quad/Tri subdivision scheme
