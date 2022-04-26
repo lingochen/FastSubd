@@ -463,6 +463,80 @@ class FaceArray {
 }
 
 
+/**
+ * hole has to start from -2, because -1 is for unassigned hole.
+ */
+class HoleArray {
+   constructor(mesh) {
+      this._mesh = mesh;
+      this._holes = new Int32PixelArray(1,1);
+      // zeroth is freeCount, 1st element is free head list, real hole start from 2nd element.
+      // this._holes.set(1, 0, -1);
+      this._holes.allocEx(2);  // preallocated [size, freeHead] if any
+   }
+   
+   *[Symbol.iterator] () {
+      const len = this._holes.length();
+      for (let i = 2; i < len; ++i) {
+         if (this._isFree(i)) {
+            yield i;
+         }
+      }
+   }
+
+   * halfEdgeIter(hole) {
+      const hEdges = this._mesh.h;
+      const start = this.halfEdge(hole);
+      let current = start;
+      do {
+         yield current;
+         current = hEdges.next(current);
+      } while (current !== start);
+   }
+
+   _hasFree() {
+      return (this._holes.get(0, 0) > 0);
+   }
+
+   alloc() {
+      // check free list first,
+      if (this._hasFree()) {
+         return this._allocFromFree();
+      } else {
+         let handle = this._holes._allocEx(1);
+         return (-handle);
+      }
+   }
+
+   free(handle) {
+      if (handle < -1) {
+         this._addToFree(handle);
+      }
+   }
+
+   halfEdge(handle) {
+      if (handle < -1) {
+         return this._holes.get(-handle, 0);
+      } else {
+         throw("invalid hole: " + handle);
+      }
+   }
+
+   setHalfEdge(handle, hEdge) {
+      if (handle < -1) {
+         this._holes.set(-handle, 0, hEdge);
+      } else {
+         throw("invalid hole: " + handle);
+      }
+   }
+
+      
+   stat() {
+      return "Holes Count: " + (this._holes.length()-2) + ";\n";
+   }
+}
+
+
 
 /**
  * name group for collection of faces.
@@ -540,8 +614,8 @@ class BaseMesh {
               materials, };
    }
 
-   computeValence() {
-      this.v.computeValence();
+   doneEdit() {
+      throw("extended class needs to implment updating internal");
    }
 
    createAttributeInterpolator() {
@@ -558,6 +632,10 @@ class BaseMesh {
    
    get v() {
       return this._vertices;
+   }
+
+   get o() {
+      return this._holes;
    }
    
    addNameGroup(name, start) {
@@ -650,7 +728,9 @@ class BaseMesh {
    stat() {
       let status = this.v.stat();
       status += this.h.stat();
-      return (status + this.f.stat());
+      status += this.f.stat();
+      status += this.o.stat();
+      return status;
    }
    
    isEmpty() {
@@ -668,4 +748,5 @@ export {
    VertexArray,
    HalfEdgeAttributeArray,
    FaceArray,
+   HoleArray,
 }

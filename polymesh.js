@@ -33,7 +33,7 @@
 *
 */
 
-import {BaseMesh, FaceArray, HalfEdgeAttributeArray, VertexArray} from './basemesh.js';
+import {BaseMesh, FaceArray, HalfEdgeAttributeArray, VertexArray, HoleArray} from './basemesh.js';
 import {Int32PixelArray} from './pixelarray.js';
 import {vec3, vec3a} from "./vec3.js";
 
@@ -62,27 +62,42 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
    constructor(size) {
       super(size);
       this._hEdges = new Int32PixelArray(HalfEdgeK.sizeOf, 4, size*2);       // structSize, numberOfChannel
-      this._wEdges = new Int32PixelArray(WingedEdgeK.sizeOf, 1, size);                 
+      this._wEdges = new Int32PixelArray(WingedEdgeK.sizeOf, 1, size);
+      this._wFree = {head: 0, size: 0}                 
    }
    
    *[Symbol.iterator] () {
       const length = this._wEdges.length();
       for (let i = 0; i < length; ++i) {
-         // if (!isFree) {
-         yield [i, i*2, i*2+1];
-         // }
+         if (!this.isFree(i)) {
+            yield [i, i*2, i*2+1];
+         }
       }
    }
 
    * halfEdgeIter() {
-      const length = this._wEdges.length() * 2; // each wEdge is 2 halfEdge
-      for (let i = 0; i < length; ++i) {
-         yield i;
+      const length = this._wEdges.length(); // each wEdge is 2 halfEdge
+      for (let i = 0; i < length; i++) {
+         if (!this.isFree(i)) {
+            yield i*2;
+            yield i*2+1;
+         }
+      }
+   }
+
+   * _freewEdgeIter() {
+      if (this._wFree.size > 0) {
+         let current = this._wFree.head;
+         while (current !== 0) {
+            yield current;
+            current = this._wEdges.get(current, 0);
+         }
       }
    }
    
    // 
    alloc() {
+      // TODO: alloc from free first.
       super._allocEx(2);
       const left = this._hEdges.alloc();
       const right = this._hEdges.alloc();
@@ -100,12 +115,29 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
       this._wEdges.allocEx(size);
    }
    
-   free(hEdge) {
-   
+   free(hEdge) {  // given the hEdge, free the wEdge.
+      const wEdge = HalfEdgeK.wEdge(hEdge);
+      this._wEdges.set(wEdge, 0, this._wFree.head);
+      this._wFree.head = -(wEdge+1);
+      this._wFree.size--;
+   }
+
+   _linkFree(wEdge, prevFree) {  // to be used by subdivide().
+      this._wEdges.set(wEdge, 0, -(prevFree+1));
+   }
+
+   _concatFree(tail, head, size) {  // to be used by subdivide()
+      this._wEdges.set(tail, 0, this._wFree.head);
+      this._wFree.head = -(head+1);
+      this._wfree.size += size;
    }
    
    isBoundary(hEdge) {
       return this._hEdges.get(hEdge, HalfEdgeK.face) < 0;
+   }
+
+   isFree(wEdge) {
+      return  (this._wEdges.get(wEdge, 0) < 0);
    }
 
    prev(hEdge) {
@@ -162,7 +194,7 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
 
    
    stat() {
-      return "HalfEdge Count: " + this._hEdges.length() + ";\n";
+      return "HalfEdge Count: " + this._hEdges.length() + "; Free wEdge Count: " + this._wFree.size + ";\n";
    }
    
    length() {
@@ -307,6 +339,41 @@ class PolygonArray extends FaceArray {
 }
 
 
+class PolyHoleArray extends HoleArray {
+   constructor(mesh) {
+      super(mesh);
+      // zeroth, is freeList count, 1st element is freeList head, // real hole start from 2nd element.
+      // this._holes.set(1, 0, 0); // 
+   }
+
+   /**
+    * halfEdge is positive Int 
+    * @param {negative Int} hole 
+    * @returns {bool}
+    */
+   _isFree(hole) {
+      const hEdge = this._holes.get(-hole, 0);
+      return (hEdge < 0);
+   }
+
+   _allocFromFree() {
+      let head = this._holes.get(1, 0);
+      const newHead = this._holes.get(-head, 0);
+      this._holes.set(1, 0, newHead);
+      this._holes.set(0, 0, this._holes.get(0,0)-1);   // update freecount;
+      return head;
+   }
+
+   _addToFree(hole) {
+      // return to free list
+      const oldHead = this._get(1, 0);
+      this._holes.set(-hole, 0, oldHead);
+      this._holes.set(1, 0, hole);
+      this._holes.set(0, 0, this._holes.get(0,0)+1);   // update freecount;
+   }
+}
+
+
 
 
 
@@ -318,8 +385,26 @@ class PolyMesh extends BaseMesh {
       this._hEdges = new HalfEdgeArray();
       this._vertices = new VertexArray(this._hEdges);
       this._faces = new PolygonArray(this._material.proxy, this._hEdges);
+      this._holes = new PolyHoleArray(this);
    };
 
+   doneEdit() {
+      this.v.computeValence();
+      // walk through all wEdges, assign hole to each hEdge group. 
+      for (let hEdge of this._hEdges) {
+         let face = this._hEdges.face(hEdge);
+         if (face === -1) {   // unassigned hEdge, get a new Hole and start assigning the whole group.
+            const hole = this._holes.alloc();
+            this._holes.setHalfEdge(hole, hEdge);
+            // assigned holeFace to whole group
+            let current = hEdge;
+            do {
+               this._hEdges.setFace(current, hole);
+               current = this._hEdges.next(current);
+            } while (current !== hEdge);
+         }
+      }
+   }
    
    addFaceEx(start, end, pts, material) {
       const length = end - start;

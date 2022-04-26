@@ -233,8 +233,99 @@ const subdivideCC = (()=>{
       }
    }
    
+   // just extend the original (0=>(0,4))
+   //                           A     6 || 7         B
+   //        1                          || 
+   //     ----->      subdivide     5---->--->1
+   //     <-----        ->          4<---<----0
+   //        0                          || 
+   //                           B     3 || 2         A
+   //
    function subdivideHole(subd, source) {
-   
+      function computeIndices(part, free, hEdge) {
+         const isOdd = HalfEdgeK.isOdd(hEdge);
+         const wEdge = HalfEdgeK.wEdge(hEdge);
+         const base = wEdge*8; // every wedge is expand by 4 wedges (2*halfEdge)
+         if (isOdd) {   // (5(2),6(3),7(3),1(0)),
+            part[0] = base + 5;
+            part[1] = base + 1;
+            free[0] = wEdge*4 + 3;
+         } else {       // (0(0), 2(1), 3(1), 4(2)),
+            part[0] = base;
+            part[1] = base + 4;
+            free[0] = wEdge*4 + 1;
+         }
+         return wEdge;
+      }
+
+      const hEdges = subd.h;
+      
+      let wTail = -1, newHead = -1;
+      let count = 0;
+      // TODO: expanded the original freeList.
+      for (let wEdge of hEdges._freewEdgeIter()) {
+         wEdge *= 4;
+         if (wTail < 0) {        // start codition, get head
+            newHead = wEdge;
+            count += 3;
+         } else {
+            hEdges._linkFree(wTail, wEdge);
+            count += 4;
+         }
+         hEdges._linkFree(wEdge, ++wEdge);
+         hEdges._linkFree(wEdge, ++wEdge);
+         hEdges._linkFree(wEdge, ++wEdge);
+         wTail = wEdge;
+      }
+      if (count > 0) { // the tail set 
+         count++;
+         //hEdges._linkFree(wTail, -1);
+      }
+      
+
+      // link the newly expanded holes.
+      const part = [0, 0],
+            wHead =[0];
+      // use HoleArray to walk through the boundary.
+      const holes = source.o;
+      for (let hole of holes) {
+         let hTail = -1, hHead = -1;
+         let size = 0;
+         for (let hEdge of holes.halfEdgeIter(hole)) {   // each edge becomes 2, and the middle 2 will be put into freeList
+            const wEdge = computeIndices(part, wHead, hEdge);
+            // update vertex(pt?), (origin, wEdgeId, faceEdgeId, wEdgeId)
+            hEdges.setOrigin(part[0], source.h.origin(hEdge));
+            hEdges.setOrigin(part[1], source.v.lengthPt() + source.f.length() + wEdge);
+            hEdges.setFace(part[0], hole);
+            hEdges.setFace(part[1], hole);
+            // link internal hole hEdges
+            if (hHead < 0) {
+               hTail = part[0];
+            } else {
+               hEdges.linkNext(hHead, part[0]);
+            }
+            hEdges.linkNext(part[0], part[1]);
+            hHead = part[1];
+            
+            // linkFreed wEdge.
+            if (count === 0) {
+               //hEdges._linkFree(wHead[0], -1);
+               wTail = wHead[0];
+               newHead = wHead[0];
+            } else {
+               hEdges._linkFree(wHead[0], newHead);
+               newHead = wHead[0];
+            }
+            count++;
+         }
+         // link hole's tail to hole's head
+         hEdges.linkNext(hHead, hTail);
+      }
+
+      // connect wEdge freeList.
+      if (count > 0) {
+         hEdges._concatFree(wTail, newHead, count);
+      }
    }
    
    function nextFaceLength(source) {

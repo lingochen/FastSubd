@@ -8,7 +8,7 @@
    Note: Gino van den Bergen has an interesting implementation. http://www.dtecta.com/files/GDC17_VanDenBergen_Gino_Brep_Triangle_Meshes.pdf
 */
 
-import {BaseMesh, FaceArray, HalfEdgeAttributeArray, VertexArray} from './basemesh.js';
+import {BaseMesh, FaceArray, HoleArray, HalfEdgeAttributeArray, VertexArray} from './basemesh.js';
 import {Int32PixelArray, Float32PixelArray} from './pixelarray.js';
 import {vec3, vec3a} from "./vec3.js";
 
@@ -26,7 +26,8 @@ const fEdgeK = {
    pair: 0,             // point to dEdge
    prev: 1,             // negative value to fEdge
    next: 2,             // negative value
-   sizeOf: 3,
+   hole: 3,             // negative value to hole
+   sizeOf: 4,
 }
 Object.freeze(fEdgeK);
 const wEdgeK = {        // wEdgeK, WingedEdgeK/WholeEdgeK
@@ -63,6 +64,14 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    * halfEdgeIter() {
       for (let i = 0; i < this._dEdges.length(); ++i) {
          yield i;
+      }
+   }
+
+   * boundaryIter() {
+      for (let i = 1; i < this._fEdges.length(); ++i) {
+         if (this._fEdges.get(i, fEdgeK.hole) < 0) {
+            yield i;
+         }
       }
    }
    
@@ -122,6 +131,7 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    freeBoundaryEdge(fEdge) {  // add to freeList.
       this._freeBoundaryCount++;
       const nextNext = this._fEdges.get(0, fEdgeK.next);
+      this._fEdges.set(-fEdge, fEdgeK.hole, 0);                // reset as free.
       this._fEdges.set(-fEdge, fEdgeK.next, nextNext);
       this._fEdges.set(0, fEdgeK.next, fEdge);                // fEdge is now head of freeList
    }
@@ -129,7 +139,6 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    isBoundary(dEdge) {
       return (dEdge < 0);
    }
-   
       
    next(dEdge) {
       if (dEdge >= 0) {
@@ -157,6 +166,14 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
          this._fEdges.set(-next, fEdgeK.prev, fEdge);
       } else {
          throw("linkNext connecting non-boundary directedEdge");
+      }
+   }
+
+   setHole(fEdge, hole) {
+      if (fEdge < 0) {
+         this._fEdges.set(-fEdge, fEdgeK.hole, hole);
+      } else {
+         // throw();
       }
    }
    
@@ -386,6 +403,49 @@ class TriangleArray extends FaceArray {
    
 }
 
+class TriHoleArray extends HoleArray {
+   constructor(mesh) {
+      super(mesh);
+   }
+   
+   /**
+    * halfEdge is negative Int, so freeList using positive Int
+    * @param {negative Int} hole 
+    * @returns {bool}
+    */
+   _isFree(hole) {
+      const hEdge = this._holes.get(-hole, 0);
+      return (hEdge > 0);
+   }
+
+
+   /** 
+    * freeList is using positive Int because HalfEdge is negative Int.
+    * @return {negative Int} hole.
+    */
+   _a
+   _allocFromFree() {
+      let head = this._holes.get(1, 0);
+      const newHead = this._holes.get(head, 0);
+      this._holes.set(1, 0, newHead);
+      this._holes.set(0, 0, this._holes.get(0,0)-1);   // update freecount;
+      return -head;
+   }
+
+   /** 
+    * freeList is using positive Int because HalfEdge is negative Int.
+    * @param {negative Int} hole.
+    */
+   _addToFree(hole) {
+      // return to free list
+      const oldHead = this._get(1, 0);
+      this._holes.set(-hole, 0, oldHead);
+      this._holes.set(1, 0, -hole);
+      this._holes.set(0, 0, this._holes.get(0,0)+1);   // update freecount;
+   }
+   
+}
+
 
 function isSame(as, bs) {
    return as.size === bs.size && [...as].every(value => bs.has(value));
@@ -399,6 +459,25 @@ class TriMesh extends BaseMesh {
       this._hEdges = new DirectedEdgeArray();
       this._vertices = new VertexArray(this._hEdges);
       this._faces = new TriangleArray(this._material.proxy, this._hEdges);
+      this._holes = new TriHoleArray(this);
+   }
+
+   doneEdit() {
+      this.v.computeValence();
+      // walk through all boundaryEdge, assign hole to each boundary group. 
+      for (let boundary of this._hEdges.boundaryIter()) {
+         let hole = this._hEdges.hole(boundary);
+         if (hole === -1) {   // unassigned hEdge, get a new Hole and start assigning the whole group.
+            hole = this._holes.alloc();
+            this._holes.setHalfEdge(hole, boundary);
+            // assigned holeFace to whole group
+            let current = hEdge;
+            do {
+               this._hEdges.setHole(current, hole);
+               current = this._hEdges.next(current);
+            } while (current !== hEdge);
+         }
+      }
    }
    
    // for debugging purpose.

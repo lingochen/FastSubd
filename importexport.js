@@ -117,7 +117,7 @@ class Importer {
    getScene() {
       this.flushGroup();
       for (let obj of this._objs) { // update all 
-         obj.computeValence();
+         obj.doneEdit();
       }
       return {world: this._objs,};// materialCatalog: Array.from(this.materialCatalog.values())};
    }
