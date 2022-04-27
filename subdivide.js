@@ -258,12 +258,14 @@ const subdivideCC = (()=>{
          return wEdge;
       }
 
+      const vertOffset = source.v.lengthPt() + source.f.length();
       const hEdges = subd.h;
-      
+      const vertices = subd.v;
       let wTail = -1, newHead = -1;
       let count = 0;
       // TODO: expanded the original freeList.
-      for (let wEdge of hEdges._freewEdgeIter()) {
+      for (let wEdge of source.h._freewEdgeIter()) {
+         vertices.setHalfEdge(vertOffset+wEdge, -1);       // the wEdge(vertex) is extra, set it as free
          wEdge *= 4;
          if (wTail < 0) {        // start codition, get head
             newHead = wEdge;
@@ -286,28 +288,29 @@ const subdivideCC = (()=>{
       // link the newly expanded holes.
       const part = [0, 0],
             wHead =[0];
-      // use HoleArray to walk through the boundary.
+      // Walk through source's holeArray
       const holes = source.o;
       for (let hole of holes) {
+         let newHole = subd.o.alloc();
          let hTail = -1, hHead = -1;
-         let size = 0;
          for (let hEdge of holes.halfEdgeIter(hole)) {   // each edge becomes 2, and the middle 2 will be put into freeList
             const wEdge = computeIndices(part, wHead, hEdge);
             // update vertex(pt?), (origin, wEdgeId, faceEdgeId, wEdgeId)
             hEdges.setOrigin(part[0], source.h.origin(hEdge));
-            hEdges.setOrigin(part[1], source.v.lengthPt() + source.f.length() + wEdge);
-            hEdges.setFace(part[0], hole);
-            hEdges.setFace(part[1], hole);
+            hEdges.setOrigin(part[1], vertOffset + wEdge);
+            hEdges.setFace(part[0], newHole);
+            hEdges.setFace(part[1], newHole);
             // link internal hole hEdges
             if (hHead < 0) {
                hTail = part[0];
+               subd.o.setHalfEdge(newHole, hTail);
             } else {
                hEdges.linkNext(hHead, part[0]);
             }
             hEdges.linkNext(part[0], part[1]);
             hHead = part[1];
             
-            // linkFreed wEdge.
+            // linkFree wEdge, also  set
             if (count === 0) {
                //hEdges._linkFree(wHead[0], -1);
                wTail = wHead[0];

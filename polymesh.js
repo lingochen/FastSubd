@@ -89,8 +89,9 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
       if (this._wFree.size > 0) {
          let current = this._wFree.head;
          while (current !== 0) {
-            yield current;
-            current = this._wEdges.get(current, 0);
+            let wEdge = (-current)-1;
+            yield wEdge;
+            current = this._wEdges.get(wEdge, 0);
          }
       }
    }
@@ -129,7 +130,7 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
    _concatFree(tail, head, size) {  // to be used by subdivide()
       this._wEdges.set(tail, 0, this._wFree.head);
       this._wFree.head = -(head+1);
-      this._wfree.size += size;
+      this._wFree.size += size;
    }
    
    isBoundary(hEdge) {
@@ -391,7 +392,7 @@ class PolyMesh extends BaseMesh {
    doneEdit() {
       this.v.computeValence();
       // walk through all wEdges, assign hole to each hEdge group. 
-      for (let hEdge of this._hEdges) {
+      for (let hEdge of this._hEdges.halfEdgeIter()) {
          let face = this._hEdges.face(hEdge);
          if (face === -1) {   // unassigned hEdge, get a new Hole and start assigning the whole group.
             const hole = this._holes.alloc();

@@ -186,9 +186,9 @@ class VertexArray {
    *[Symbol.iterator] () {
       const length = this._vertices.length();
       for (let i = 0; i < length; ++i) {
-         // if (!isFree(i)) {
-         yield i;
-         // }
+         if (!this.isFree(i)) {
+            yield i;
+         }
       }
    }
    
@@ -250,7 +250,7 @@ class VertexArray {
    computeValence() {
       let valenceMax = 0;
       let boundary = false;
-      for (let i = 0; i < this._vertices.length(); ++i) {
+      for (let i of this) {
          const start = this._vertices.get(i, VertexK.hEdge);
          if (start >= 0) {
             let count = 0;
@@ -289,6 +289,10 @@ class VertexArray {
       }
    }
 
+   isFree(vert) {
+      return (this._vertices.get(vert, VertexK.hEdge) < 0);
+   }
+
    copyPt(vertex, inPt, inOffset) {
       const pt = this._vertices.get(vertex, VertexK.pt);
       vec3.copy(this._pts.getBuffer(), pt * PointK.sizeOf, inPt, inOffset);
@@ -297,12 +301,6 @@ class VertexArray {
    pt(vert) {
       return this._vertices.get(vert, VertexK.pt);
    }
-   
-      
-   valence(vert) {
-      return this._vertices.get(vert, VertexK.valence);
-   }
-   
    
    halfEdge(vert) {
       return this._vertices.get(vert, VertexK.hEdge);
@@ -478,8 +476,8 @@ class HoleArray {
    *[Symbol.iterator] () {
       const len = this._holes.length();
       for (let i = 2; i < len; ++i) {
-         if (this._isFree(i)) {
-            yield i;
+         if (!this._isFree(-i)) {
+            yield -i;
          }
       }
    }
@@ -503,7 +501,7 @@ class HoleArray {
       if (this._hasFree()) {
          return this._allocFromFree();
       } else {
-         let handle = this._holes._allocEx(1);
+         let handle = this._holes.alloc();
          return (-handle);
       }
    }
@@ -530,7 +528,20 @@ class HoleArray {
       }
    }
 
-      
+   sanityCheck() {
+      const hEdges = this._mesh.h;
+      let sanity = true;
+      for (let hole of this) {
+         for (let hEdge of this.halfEdgeIter(hole)) {
+            if (hEdges.face(hEdge) !== hole) {
+               sanity = false;
+               break;
+            }
+         }
+      }
+      return sanity;
+   }
+
    stat() {
       return "Holes Count: " + (this._holes.length()-2) + ";\n";
    }
@@ -722,7 +733,8 @@ class BaseMesh {
       const vOk = this.v.sanityCheck();
       const hOk = this.h.sanityCheck();
       const fOk = this.f.sanityCheck();
-      return (vOk && hOk && fOk);
+      const oOk = this.o.sanityCheck();
+      return (vOk && hOk && fOk && oOk);
    }
    
    stat() {

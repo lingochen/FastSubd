@@ -219,9 +219,11 @@
          let start = Date.now();
          subd = subdivideFunc(subd);
          text += "(level: " + (i+1) + ", time: " + (Date.now()-start) + ")\n";
-         //const sanity = subd.sanityCheck();
-         //console.log("mesh integrity: " + sanity);
-         //console.log(subd.stat());
+         if (0) {
+            const sanity = subd.sanityCheck();
+            console.log("mesh integrity: " + sanity);
+            console.log(subd.stat());
+         }
       }
       // now setRenderData
       let start = Date.now();
