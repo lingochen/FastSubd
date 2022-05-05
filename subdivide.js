@@ -263,7 +263,7 @@ const subdivideCC = (()=>{
       const vertices = subd.v;
       let wTail = -1, newHead = -1;
       let count = 0;
-      // TODO: expanded the original freeList.
+      // expanded the original freeList.
       for (let wEdge of source.h._freewEdgeIter()) {
          vertices.setHalfEdge(vertOffset+wEdge, -1);       // the wEdge(vertex) is extra, set it as free
          wEdge *= 4;
@@ -447,6 +447,12 @@ const subdivideTriPoly = (source, refineEdge, refineVertex)=>{
          subd.f._materialAddRef(material, 4);
       }
    }
+
+   function subdivideHole(subd, source) {
+      // this should be similar to catmull-clark poly?
+
+
+   }
    
    function computeSubdivideMid(hEdge) {
       return hEdge*4 + 2;
@@ -472,7 +478,7 @@ const subdivideTriPoly = (source, refineEdge, refineVertex)=>{
    
    // fixed-up the wEdges, Faces, and vertex connection.
    subdivideFace(subd, source);
-   // subdivideHole(subd, source);
+   subdivideHole(subd, source);
    
    return subd;
 };
@@ -547,6 +553,12 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    
    }
    
+   function subdivideHole(subd, source) {
+      // boundaryEdge expand by 2 only, also free boundaryEdge expand by 2.
+      
+      
+   }
+   
    function computeSubdivideMid(hEdge) {
       const [face, index] = DirectedEdgeArray.faceAndIndex(hEdge);
       return face*3*4 + index*3+1;  
@@ -574,7 +586,7 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    
    // fixed-up the wEdges, Faces, and vertex connection.
    subdivideFace(subd, source);
-   // subdivideHole(subd, source);
+   subdivideHole(subd, source);
    
    return subd;
 };

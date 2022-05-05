@@ -70,7 +70,7 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    * boundaryIter() {
       for (let i = 1; i < this._fEdges.length(); ++i) {
          if (this._fEdges.get(i, fEdgeK.hole) < 0) {
-            yield i;
+            yield -i;
          }
       }
    }
@@ -117,15 +117,18 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    
    allocBoundaryEdge() {
       //return -(this._fEdges.alloc());
-      const next = this._fEdges.get(0, fEdgeK.next);
+      let next = this._fEdges.get(0, fEdgeK.next);
       if (next) { // get from free boundaryEdge first
          const nextNext = this._fEdges.get(-next, fEdgeK.next);
          this._fEdges.set(0, fEdgeK.next, nextNext);
          this._freeBoundaryCount--;
          return next;
       } else { // allocated a new one. return negative handle.
-         return -(this._fEdges.alloc());
+         next = -(this._fEdges.alloc());
       }
+      // remember to set hole to -1
+      this._fEdges.set(-next, fEdgeK.hole, -1);
+      return next;
    }
    
    freeBoundaryEdge(fEdge) {  // add to freeList.
@@ -169,11 +172,19 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
       }
    }
 
+   hole(fEdge) {
+      if (fEdge < 0) {
+         return this._fEdges.get(-fEdge, fEdgeK.hole);
+      } else {
+         throw("bad fEdge");
+      }
+   }
+
    setHole(fEdge, hole) {
       if (fEdge < 0) {
          this._fEdges.set(-fEdge, fEdgeK.hole, hole);
       } else {
-         // throw();
+         throw("bad fEdge");
       }
    }
    
@@ -471,11 +482,11 @@ class TriMesh extends BaseMesh {
             hole = this._holes.alloc();
             this._holes.setHalfEdge(hole, boundary);
             // assigned holeFace to whole group
-            let current = hEdge;
+            let current = boundary;
             do {
                this._hEdges.setHole(current, hole);
                current = this._hEdges.next(current);
-            } while (current !== hEdge);
+            } while (current !== boundary);
          }
       }
    }
