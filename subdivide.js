@@ -487,22 +487,37 @@ const subdivideTriPoly = (source, refineEdge, refineVertex)=>{
 
 
 const subdivideTri = (source, refineEdge, refineVertex)=>{
+   function computeWEdgeLo(srcH, wEdge, hEdge) {
+      const i = (srcH.wEdgeLeft(srcH.wEdge(hEdge)) === hEdge) ? 1 : 0;
+      return wEdge * 2 + i;
+   }
+   function computePairLo(srcH, hEdge) {
+      const pair = srcH.pair(hEdge);
+      if (pair >= 0) {
+         const [face, index] = DirectedEdgeArray.faceAndIndex(pair);
+         return face*3*4 + ((index*3+5)%9);
+      } else { // boundaryEdge, multiply by 2-i
+         return pair*2-1;
+      }
+   }
+   function computeWEdgeHi(srcH, wEdge, hEdge) {
+      const i = (srcH.wEdgeLeft(srcH.wEdge(hEdge)) === hEdge) ? 0 : 1;
+      return wEdge * 2 + i;
+   }
+   function computePairHi(srcH, hEdge) {
+      const pair = srcH.pair(hEdge);
+      if (pair >= 0) {
+         const [face, index] = DirectedEdgeArray.faceAndIndex(pair);
+         return face*3*4 + index*3;
+      } else { // boundaryEdge, multiply by 2,
+         return pair*2;
+      }
+   }
+
    /**
     each face divide to 4 face, wEdge*3, 
    */  
    function subdivideFace(subd, source) {
-      function computeWEdgeAndPair(wEdge, hEdge) {
-         const pair = srcH.pair(hEdge);
-         const [face, index] = DirectedEdgeArray.faceAndIndex(pair);
-         const i = (srcH.wEdgeLeft(srcH.wEdge(hEdge)) === hEdge) ? 1 : 0;
-         return [wEdge*2+i, face*3*4 + ((index*3+5)%9)];
-      }
-      function computeWEdgeAndPairEnd(wEdge, hEdge) {
-         const pair = srcH.pair(hEdge);
-         const [face, index] = DirectedEdgeArray.faceAndIndex(pair);
-         const i = (srcH.wEdgeLeft(srcH.wEdge(hEdge)) === hEdge) ? 0 : 1;
-         return [wEdge*2+i, face*3*4 + index*3];
-      }
       const srcH = source.h;
       const subdH = subd.h;
       const subdF = subd.f;
@@ -522,7 +537,8 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
                       srcH.wEdge(srcEdge+2) ];
          for (let i = 0; i < 3; ++i) {
             let j = (i+2)%3;
-            let [newWEdge, newPair] = computeWEdgeAndPair(wEdge[i], srcEdge+i);
+            let newWEdge = computeWEdgeLo(srcH, wEdge[i], srcEdge+i);
+            let newPair = computePairLo(srcH, srcEdge+i);
             subdH.setOrigin(destEdge, srcH.origin(srcEdge+i));
             subdH._setPair(destEdge, newPair);
             subdH.setWEdge(destEdge, newWEdge);
@@ -535,7 +551,8 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
             subdH.setWEdge(destEdge+1, newWEdge);
             subdH.setWEdge(newPair, newWEdge);           // middle extra face
 
-            [newWEdge, newPair] = computeWEdgeAndPairEnd(wEdge[j], srcEdge+j);
+            newWEdge = computeWEdgeHi(srcH, wEdge[j], srcEdge+j);
+            newPair = computePairHi(srcH, srcEdge+j);
             subdH.setOrigin(destEdge+2, offset+wEdge[j]);
             subdH._setPair(destEdge+2, newPair);
             subdH.setWEdge(destEdge+2, newWEdge);
@@ -554,9 +571,41 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    }
    
    function subdivideHole(subd, source) {
+      const srcH = source.h;
+      const subdH = subd.h;
       // boundaryEdge expand by 2 only, also free boundaryEdge expand by 2.
-      
-      
+      subdH._freeBoundaryCount = srcH._freeBoundaryCount*2;
+      subdH._allocBEdge((srcH._fEdges.length()-1)*2);
+      for (let bEdge of srcH._fEdgeIter()) { // expand by 2
+         let hole = srcH.hole(bEdge);
+         if (hole < 0) {   // yes this is boundary edge,
+            // (pair, next, prev hole) next, prev, expand by 2,
+            let bEdge2 = bEdge*2;
+            let newPair = computePairLo(srcH, bEdge);
+            subdH.setPair(bEdge2, newPair);
+            subdH.linkNext(bEdge2, bEdge2-1); // next is increment in negative int
+            subdH.setHole(bEdge2, hole);      // hole don't change
+            
+            // the expand hi edge,
+            bEdge2 -= 1;
+            newPair = computePairHi(srcH, bEdge);
+            subdH.setPair(bEdge2, newPair);
+            let next = srcH.next(bEdge);
+            subdH.linkNext(bEdge2, next*2);
+            subdH.setHole(bEdge2, hole);      // hole don't change
+         } else { // freeList, expand the freeList by 2,
+
+         }
+      }
+
+      const subdO = subd.o;
+      // create new holes in destination.
+      subdO._copy(source.o);
+      // now iterating hole to set the correct new HalfEdge
+      for (let hole of subdO) {
+         let bEdge = subdO.halfEdge(hole);
+         subdO.setHalfEdge(hole, bEdge*2);
+      }
    }
    
    function computeSubdivideMid(hEdge) {

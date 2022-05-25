@@ -220,7 +220,7 @@
          let start = Date.now();
          subd = subdivideFunc(subd);
          text += "(level: " + (i+1) + ", time: " + (Date.now()-start) + ")\n";
-         if (0) {
+         if (1) {
             const sanity = subd.sanityCheck();
             console.log("mesh integrity: " + sanity);
             console.log(subd.stat());

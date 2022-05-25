@@ -74,6 +74,12 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
          }
       }
    }
+
+   * _fEdgeIter() {
+      for (let i = 1; i < this._fEdges.length(); ++i) {
+         yield -i;
+      }
+   }
    
    alloc() {   // alloc 3 directedEdge.
       super._allocEx(3);   // attribute
@@ -102,6 +108,10 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
 
    _allocWEdge(size) {
       this._wEdges.allocEx(size);
+   }
+
+   _allocBEdge(size) {
+      this._fEdges.allocEx(size);
    }
    
    allocWEdge(dEdge) {

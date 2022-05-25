@@ -112,6 +112,12 @@ class HalfEdgeAttributeArray {
       this._attrs.setVec3(hEdge, HalfEdgeAttrK.normal, normal);
    }
 
+   /**
+    DirectedEdge will override
+    */
+   hole(hEdge) {
+      return this.face(hEdge);
+   }
 }
 
 class AttributeInterpolator {
@@ -472,6 +478,20 @@ class HoleArray {
       // this._holes.set(1, 0, -1);
       this._holes.allocEx(2);  // preallocated [size, freeHead] if any
    }
+
+   /**
+    * assumed this is pristine, reconstruct hole from another one, used by subdivide.
+    * @param {HoleArray} src
+    */
+   _copy(src) {
+      const srcLen = src._holes.length();
+      this._holes.allocEx(srcLen - this._holes.length());
+      // now copy everything.
+      for (let i = 0; i < srcLen; ++i) {
+         this._holes.set(i, 0, src._holes.get(i, 0));
+      }
+   }
+
    
    *[Symbol.iterator] () {
       const len = this._holes.length();
@@ -533,7 +553,7 @@ class HoleArray {
       let sanity = true;
       for (let hole of this) {
          for (let hEdge of this.halfEdgeIter(hole)) {
-            if (hEdges.face(hEdge) !== hole) {
+            if (hEdges.hole(hEdge) !== hole) {
                sanity = false;
                break;
             }
