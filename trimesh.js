@@ -303,6 +303,17 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
             return false;
          } 
       }
+      // check freeList
+      let freeCount = 0;
+      let current = this._fEdges.get(0, fEdgeK.next);
+      while (current < 0) {
+         current = this._fEdges.get(-current, fEdgeK.next);
+         freeCount++;
+      }
+      if (freeCount !== this._freeBoundaryCount) {
+         console.log("FreeCount disagree, expected: " + this._freeBoundaryCount + " got: " + freeCount);
+         return false;
+      }
       return true;
    }
 }
@@ -681,4 +692,5 @@ class TriMesh extends BaseMesh {
 export {
    TriMesh,
    DirectedEdgeArray,
+   fEdgeK,
 }

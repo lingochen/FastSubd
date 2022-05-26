@@ -3,7 +3,7 @@
  *
  */
 import {PolyMesh, PolygonK, HalfEdgeK} from './polymesh.js';
-import {TriMesh, DirectedEdgeArray} from './trimesh.js';
+import {TriMesh, DirectedEdgeArray, fEdgeK} from './trimesh.js';
 import {vec3, vec3a} from "./vec3.js";
 
 
@@ -573,9 +573,12 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
    function subdivideHole(subd, source) {
       const srcH = source.h;
       const subdH = subd.h;
-      // boundaryEdge expand by 2 only, also free boundaryEdge expand by 2.
-      subdH._freeBoundaryCount = srcH._freeBoundaryCount*2;
-      subdH._allocBEdge((srcH._fEdges.length()-1)*2);
+      // boundaryEdge expand by 2 only, also free boundaryEdge expand by 2. +1 (0, 1) 1 is extra free
+      subdH._freeBoundaryCount = (srcH._freeBoundaryCount*2) + 1;
+      let head = srcH._fEdges.get(0, fEdgeK.next);
+      subdH._fEdges.set(1, fEdgeK.next, head*2);
+      subdH._fEdges.set(0, fEdgeK.next, -1);
+      subdH._allocBEdge(srcH._fEdges.length()*2-1);
       for (let bEdge of srcH._fEdgeIter()) { // expand by 2
          let hole = srcH.hole(bEdge);
          if (hole < 0) {   // yes this is boundary edge,
@@ -594,7 +597,9 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
             subdH.linkNext(bEdge2, next*2);
             subdH.setHole(bEdge2, hole);      // hole don't change
          } else { // freeList, expand the freeList by 2,
-
+            subdH._fEdges.set(-bEdge*2, fEdgeK.next, bEdge*2-1);
+            const next = srcH._fEdges.get(-bEdge, fEdgeK.next);
+            subdH._fEdges.set(-bEdge*2+1, fEdgeK.next, next*2);
          }
       }
 
