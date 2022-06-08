@@ -32,7 +32,7 @@ const fEdgeK = {
 Object.freeze(fEdgeK);
 const wEdgeK = {        // wEdgeK, WingedEdgeK/WholeEdgeK
    left: 0,       // the left
-   sharpness: 1,	// crease weights is per wEdge, sharpness is integer
+   sharpness: 1,	// crease weights is per wEdge, sharpness is float, (int is enough, but subdivision will create fraction, so needs float)
    sizeOf: 2,
 }
 Object.freeze(wEdgeK);
@@ -272,6 +272,20 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
       this._dEdges.set(dEdge, dEdgeK.wEdge, wEdge);
       this._wEdges.set(wEdge, wEdgeK.left, dEdge);    // we really don't care who is left, as long as there is one?
    }
+
+   /**
+    * get sharpness from wEdge sharpness.
+    * @param {int} dEdge 
+    */
+   sharpness(dEdge) {
+      const wEdge = this.wEdge(dEdge);
+      return this._wEdges.get(wEdge, wEdgeK.sharpness);
+   }
+
+   setSharpness(dEdge, sharpness) {
+      const wEdge = this.wEdge(dEdge);
+      this._wEdges.set(wEdge, wEdgeK.sharpness, sharpness);
+   }
    
    stat() {
       return "WingedEdge Count: " + this.lengthW() + ";\nDirectedEdge Count: " + this.length() + ";\n";
@@ -495,7 +509,6 @@ class TriMesh extends BaseMesh {
    }
 
    doneEdit() {
-      this.v.computeValence();
       // walk through all boundaryEdge, assign hole to each boundary group. 
       for (let boundary of this._hEdges.boundaryIter()) {
          let hole = this._hEdges.hole(boundary);
@@ -505,11 +518,14 @@ class TriMesh extends BaseMesh {
             // assigned holeFace to whole group
             let current = boundary;
             do {
+               this._hEdges.setSharpness(current, -1);   // boundary is infinite crease.
                this._hEdges.setHole(current, hole);
                current = this._hEdges.next(current);
             } while (current !== boundary);
          }
       }
+      // now compute valence and crease.
+      this.v.computeValence();
    }
    
    // for debugging purpose.

@@ -172,7 +172,7 @@ const VertexK = {
    hEdge: 0,
    pt: 1,
    valence: 2,
-   boundary: 3,
+   crease: 3,     // (-1=corner, 3 edge with sharpness), (0=smooth, 0 or 1 edge with sharpness), (1=crease, 2 edge with sharpness))
    // cache, 
    //normal: 3,
    //tangent: 3,
@@ -255,14 +255,23 @@ class VertexArray {
 
    computeValence() {
       let valenceMax = 0;
-      let boundary = false;
       for (let i of this) {
          const start = this._vertices.get(i, VertexK.hEdge);
          if (start >= 0) {
             let count = 0;
             let current = start;
+            let sharpness = 0;
+            let creaseCount = 0;
             do {
-               boundary = boundary || this._hEdges.isBoundary(current);
+               if (creaseCount < 3) {
+                  let value = this._hEdges.sharpness(current);
+                  if (value > 0) {
+                     sharpness += value;
+                     creaseCount++;
+                  } else if (value < 0) { // boundaryEdge create corner like condition.
+                     creaseCount = 3;
+                  }
+               }
                const pair = this._hEdges.pair(current);
                current = this._hEdges.next( pair );
                count++;
@@ -271,7 +280,14 @@ class VertexArray {
                valenceMax = count;
             }
             this._vertices.set(i, VertexK.valence, count);
-            this._vertices.set(i, VertexK.boundary, boundary);
+            if (creaseCount > 2) {
+               this._vertices.set(i, VertexK.crease, -1);
+            } else if (creaseCount == 2) {
+               this._vertices.set(i, VertexK.crease, sharpness/2.0);
+            } else {
+               this._vertices.set(i, VertexK.crease, 0);
+            }
+
          }
       }
       this._valenceMax = valenceMax;

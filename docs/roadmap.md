@@ -2,11 +2,11 @@
      - except for attributes, which needs to be refactored.
      - reuse attribute like vertex.
 
-- Holes management in PolyMesh/TriMesh. (why? easier to select boundary edges as group)
+- Holes management in PolyMesh/TriMesh. (why? easier to select boundary edges as group) @done(2022/05/26)
      - add HoleArray handling.
      - subdivide holes handling 
 
-- Support Boundary and Crease, investigated discontinuity of attributes.
+- Support Boundary and Crease, investigated discontinuity of attributes. 
      - boundary edge
      - crease edge/vertex
 

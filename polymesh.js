@@ -52,7 +52,7 @@ const HalfEdgeK = {   // handle location
 };
 Object.freeze(HalfEdgeK);
 const WingedEdgeK = {
-   sharpness: 0,	// crease weights is per wEdge, sharpness is integer
+   sharpness: 0,	// crease weights is per wEdge, sharpness is float, (int is enough, but subdivision will create fraction)
    sizeOf: 1,
 }
 Object.freeze(WingedEdgeK);
@@ -193,6 +193,19 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
       return Math.trunc(hEdge/2);
    }
 
+   /**
+    * get sharpness from wEdge sharpness.
+    * @param {int} hEdge 
+    */
+   sharpness(hEdge) {
+      const wEdge = this.wEdge(hEdge);
+      return this._wEdges.get(wEdge, WingedEdgeK.sharpness);
+   }
+
+   setSharpness(hEdge, sharpness) {
+      const wEdge = this.wEdge(hEdge);
+      this._wEdges.set(wEdge, WingedEdgeK.sharpness, sharpness);
+   }
    
    stat() {
       return "HalfEdge Count: " + this._hEdges.length() + "; Free wEdge Count: " + this._wFree.size + ";\n";
@@ -390,7 +403,6 @@ class PolyMesh extends BaseMesh {
    };
 
    doneEdit() {
-      this.v.computeValence();
       // walk through all wEdges, assign hole to each hEdge group. 
       for (let hEdge of this._hEdges.halfEdgeIter()) {
          let face = this._hEdges.face(hEdge);
@@ -400,11 +412,14 @@ class PolyMesh extends BaseMesh {
             // assigned holeFace to whole group
             let current = hEdge;
             do {
+               this._hEdges.setSharpness(current, -1);   // boundary is infinite crease.
                this._hEdges.setFace(current, hole);
                current = this._hEdges.next(current);
             } while (current !== hEdge);
          }
       }
+      // now compute valence and crease
+      this.v.computeValence();
    }
    
    addFaceEx(start, end, pts, material) {
