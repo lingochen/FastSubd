@@ -122,6 +122,17 @@ class Importer {
       return {world: this._objs,};// materialCatalog: Array.from(this.materialCatalog.values())};
    }
 
+   /**
+    * given an halfEdge (v0, v1), set sharpness value
+    * @param {int} v0 
+    * @param {int} v1 
+    * @param {float} sharpness 
+    */
+   addSharpness(v0, v1, sharpness) {
+      const hEdge = this._currentMesh.findHalfEdge(v0, v1);
+      this._currentMesh.h.setSharpness(hEdge, sharpness);
+   }
+
 
    addMaterial(name, pbr) {
       let mat = this._library.material.get(name);

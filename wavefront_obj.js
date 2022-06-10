@@ -25,7 +25,7 @@ class WavefrontObjImporter {
    async import(file) {
       const objText = await file.text();
       // break the objText to lines we needs.
-      const linesMatch = objText.match(/^([vfogs]|vt|usemtl|mtllib)(?:\s+(.+))$/gm);   //objText.match(/^v((?:\s+)[\d|\.|\+|\-|e|E]+){3}$/gm);
+      const linesMatch = objText.match(/^([vfogst]|vt|usemtl|mtllib)(?:\s+(.+))$/gm);   //objText.match(/^v((?:\s+)[\d|\.|\+|\-|e|E]+){3}$/gm);
 
       if (linesMatch) {
          for (let line of linesMatch) {
@@ -59,6 +59,17 @@ class WavefrontObjImporter {
 
    s(groupNumber) {  // smooth group. probably not applicable ?
       // to be implemented later
+   }
+
+   /**
+    * opensubdiv crease support
+    * @param {array} params - check if the array conform to opensubdiv's 
+    */
+    t(params) {
+      if (params[0] === "crease") {
+         // vertex is 1 based, convert to 0 based.
+         this._maker.addSharpness(this._maker.getVertex(params[2]), this._maker.getVertex(params[3]), Number(params[4]));
+      }
    }
 
    v(vertex) {
