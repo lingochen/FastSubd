@@ -705,7 +705,15 @@ class BaseMesh {
    addFace(pts, material) {
       return this.addFaceEx(0, pts.length, pts, material);
    }
-   
+  
+   findHalfEdge(v0, v1) {
+      for (let outEdge of this._vertices.outEdgeIter(v0)) {
+         if (this._hEdges.destination(outEdge) === v1) {
+            return outEdge;
+         }
+      }
+      return -1;
+   }
         
    /**
     * search for free gap,

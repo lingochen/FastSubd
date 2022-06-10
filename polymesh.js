@@ -487,15 +487,6 @@ class PolyMesh extends BaseMesh {
       return {face: newPolygon, hLoop: halfLoop};
    }
    
-   findHalfEdge(v0, v1) {
-      for (let outEdge of this._vertices.outEdgeIter(v0)) {
-         if (this._hEdges.destination(outEdge) === v1) {
-            return outEdge;
-         }
-      }
-      return -1;
-   }
-   
    // failed addPolygon. free and unlink edges, and unset face
    _unwindNewEdges(polygon, halfEdges, halfLoop) {
       this._freePolygon(polygon);
