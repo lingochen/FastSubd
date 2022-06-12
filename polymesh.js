@@ -34,7 +34,7 @@
 */
 
 import {BaseMesh, FaceArray, HalfEdgeAttributeArray, VertexArray, HoleArray} from './basemesh.js';
-import {Int32PixelArray} from './pixelarray.js';
+import {Int32PixelArray, Float32PixelArray} from './pixelarray.js';
 import {vec3, vec3a} from "./vec3.js";
 
 
@@ -62,7 +62,7 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
    constructor(size) {
       super(size);
       this._hEdges = new Int32PixelArray(HalfEdgeK.sizeOf, 4, size*2);       // structSize, numberOfChannel
-      this._wEdges = new Int32PixelArray(WingedEdgeK.sizeOf, 1, size);
+      this._wEdges = new Float32PixelArray(WingedEdgeK.sizeOf, 1, size);
       this._wFree = {head: 0, size: 0}                 
    }
    

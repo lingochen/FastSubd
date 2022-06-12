@@ -32,10 +32,14 @@ const fEdgeK = {
 Object.freeze(fEdgeK);
 const wEdgeK = {        // wEdgeK, WingedEdgeK/WholeEdgeK
    left: 0,       // the left
-   sharpness: 1,	// crease weights is per wEdge, sharpness is float, (int is enough, but subdivision will create fraction, so needs float)
-   sizeOf: 2,
+   sizeOf: 1,
 }
 Object.freeze(wEdgeK);
+const wEdgeSK = {
+   sharpness: 0,	// crease weights is per wEdge, sharpness is float, (int is enough, but subdivision will create fraction, so needs float)
+   sizeOf: 1,
+}
+Object.freeze(wEdgeSK);
 
 
 // directEdge is 1 triangle as unit, 3 directEdge.
@@ -46,16 +50,19 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
       this._fEdges = new Int32PixelArray(fEdgeK.sizeOf, 3, size);
       this._fEdges.alloc();   // alloc zeroth for management of free list
       // TODO: wEdge, freeList 
-      this._wEdges = new Int32PixelArray(wEdgeK.sizeOf, 4, size*2);
+      this._wEdges = {
+         left: new Int32PixelArray(1, 1, size),
+         sharpness: new Float32PixelArray(1, 1, size),
+      };
       this._wFreeList = -1;
       this._freeBoundaryCount=0;
    }
     
    *[Symbol.iterator] () {
-      const length = this._wEdges.length();
+      const length = this._wEdges.left.length();
       for (let i = 0; i < length; ++i) {
          // if (!isFree) {
-         const left = this._wEdges.get(i, wEdgeK.left);
+         const left = this._wEdges.left.get(i, 0);
          yield [i, left, this.pair(left)];
          // }
       }
@@ -107,7 +114,8 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    }
 
    _allocWEdge(size) {
-      this._wEdges.allocEx(size);
+      this._wEdges.left.allocEx(size);
+      this._wEdges.sharpness.allocEx(size);
    }
 
    _allocBEdge(size) {
@@ -115,8 +123,9 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    }
    
    allocWEdge(dEdge) {
-      const handle = this._wEdges.alloc();
-      this._wEdges.set(handle, wEdgeK.left, dEdge);
+      this._wEdges.sharpness.alloc();
+      const handle = this._wEdges.left.alloc();
+      this._wEdges.left.set(handle, 0, dEdge);
       this.setWEdge(dEdge, handle);
       return handle;
    }
@@ -265,12 +274,12 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    }
    
    wEdgeLeft(wEdge) {
-      return this._wEdges.get(wEdge, wEdgeK.left);
+      return this._wEdges.left.get(wEdge, 0);
    }
    
    setWEdge(dEdge, wEdge) {
       this._dEdges.set(dEdge, dEdgeK.wEdge, wEdge);
-      this._wEdges.set(wEdge, wEdgeK.left, dEdge);    // we really don't care who is left, as long as there is one?
+      this._wEdges.left.set(wEdge, 0, dEdge);    // we really don't care who is left, as long as there is one?
    }
 
    /**
@@ -279,12 +288,12 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
     */
    sharpness(dEdge) {
       const wEdge = this.wEdge(dEdge);
-      return this._wEdges.get(wEdge, wEdgeK.sharpness);
+      return this._wEdges.sharpness.get(wEdge, 0);
    }
 
    setSharpness(dEdge, sharpness) {
       const wEdge = this.wEdge(dEdge);
-      this._wEdges.set(wEdge, wEdgeK.sharpness, sharpness);
+      this._wEdges.sharpness.set(wEdge, 0, sharpness);
    }
    
    stat() {
@@ -296,7 +305,7 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    }
    
    lengthW() {
-      return this._wEdges.length();
+      return this._wEdges.left.length();
    }
 
    sanityCheck() {
