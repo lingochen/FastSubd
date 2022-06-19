@@ -170,27 +170,35 @@ const PointK = {
 Object.freeze(PointK);
 const VertexK = {
    hEdge: 0,
-   pt: 1,
-   valence: 2,
-   crease: 3,     // (-1=corner, 3 edge with sharpness), (0=smooth, 0 or 1 edge with sharpness), (1=crease, 2 edge with sharpness))
+   //pt: 1,
    // cache, 
    //normal: 3,
    //tangent: 3,
-   sizeOf: 4,
+   sizeOf: 1,
 }
 Object.freeze(VertexK);
+const VertexAttrK = {   // float for arithmatic
+   valence: 0,
+   crease: 1,     // (-1=corner, 3 edge with sharpness), (0=smooth, (0,1) edge with sharpness), (>1 == crease, 2 edge with sharpness))
+   sizeOf: 2,
+}
+Object.freeze(VertexAttrK);
 
 
 class VertexArray {
    constructor(hEdges, size) {
-      this._vertices = new Int32PixelArray(VertexK.sizeOf, 4, size);
+      this._vertices = {
+         hEdge: new Int32PixelArray(VertexK.sizeOf, 1, size),
+         pt: new Int32PixelArray(1, 1, size),
+         attr: new Float32PixelArray(VertexAttrK.sizeOf, 2, size),
+      };
       this._pts = new Float32PixelArray(PointK.sizeOf, 3, size);
       this._hEdges = hEdges;
       this._valenceMax = 0;
    }
    
    *[Symbol.iterator] () {
-      const length = this._vertices.length();
+      const length = this._vertices.hEdge.length();
       for (let i = 0; i < length; ++i) {
          if (!this.isFree(i)) {
             yield i;
@@ -201,7 +209,7 @@ class VertexArray {
    * outEdgeIter(vert) {
       const hEdges = this._hEdges;
    
-      const start = this._vertices.get(vert, VertexK.hEdge);
+      const start = this._vertices.hEdge.get(vert, VertexK.hEdge);
       if (start >= 0) {
          let current = start;
          do {
@@ -217,7 +225,7 @@ class VertexArray {
    * inEdgeIter(vert) {
       const hEdges = this._hEdges;
    
-      const start = this._vertices.get(vert, VertexK.hEdge);
+      const start = this._vertices.hEdge.get(vert, VertexK.hEdge);
       if (start >= 0) {
          let current = start;
          do {
@@ -246,17 +254,26 @@ class VertexArray {
    }
 
    valence(vertex) {
-      return this._vertices.get(vertex, VertexK.valence);
+      return this._vertices.attr.get(vertex, VertexAttrK.valence);
    }
    
    setValence(vertex, valence) {
-      this._vertices.set(vertex, VertexK.valence, valence);
+      this._vertices.attr.set(vertex, VertexAttrK.valence, valence);
+   }
+
+   crease(vertex) {
+      return this._vertices.attr.get(vertex, VertexAttrK.crease);
+   }
+
+
+   setCrease(vertex, crease) {
+      this._vertices.attr.set(vertex, VertexAttrK.crease, crease);
    }
 
    computeValence() {
       let valenceMax = 0;
       for (let i of this) {
-         const start = this._vertices.get(i, VertexK.hEdge);
+         const start = this._vertices.hEdge. get(i, VertexK.hEdge);
          if (start >= 0) {
             let count = 0;
             let current = start;
@@ -279,13 +296,13 @@ class VertexArray {
             if (count > valenceMax) {
                valenceMax = count;
             }
-            this._vertices.set(i, VertexK.valence, count);
+            this.setValence(i, count);
             if (creaseCount > 2) {
-               this._vertices.set(i, VertexK.crease, -1);
-            } else if (creaseCount == 2) {
-               this._vertices.set(i, VertexK.crease, sharpness/2.0);
+               this.setCrease(i, -1);
+            } else if (creaseCount === 2) {
+               this.setCrease(i, sharpness/2.0);
             } else {
-               this._vertices.set(i, VertexK.crease, 0);
+               this.setCrease(i, 0);
             }
 
          }
@@ -294,42 +311,46 @@ class VertexArray {
    }
 
    alloc() {
-      const vertex = this._vertices.alloc();
+      this._vertices.attr.alloc();
+      this._vertices.pt.alloc();
+      const vertex = this._vertices.hEdge.alloc();
       this._pts.alloc();
-      this._vertices.set(vertex, VertexK.pt, vertex);
+      this._vertices.pt.set(vertex, 0, vertex);
       return vertex;
    }
    
    _allocEx(size) {
       const start = this.length();
-      this._vertices.allocEx(size);
+      this._vertices.attr.allocEx(size);
+      this._vertices.pt.allocEx(size);
+      this._vertices.hEdge.allocEx(size);
       this._pts.allocEx(size);
       const end = start + size;
       // copy location, TODO: comeback for non-maniford case
       for (let i = start; i < end; ++i) {
-         this._vertices.set(i, VertexK.pt, i);
+         this._vertices.pt.set(i, 0, i);
       }
    }
 
    isFree(vert) {
-      return (this._vertices.get(vert, VertexK.hEdge) < 0);
+      return (this._vertices.hEdge.get(vert, VertexK.hEdge) < 0);
    }
 
    copyPt(vertex, inPt, inOffset) {
-      const pt = this._vertices.get(vertex, VertexK.pt);
+      const pt = this._vertices.pt.get(vertex, 0);
       vec3.copy(this._pts.getBuffer(), pt * PointK.sizeOf, inPt, inOffset);
    }
    
    pt(vert) {
-      return this._vertices.get(vert, VertexK.pt);
+      return this._vertices.pt.get(vert, 0);
    }
    
    halfEdge(vert) {
-      return this._vertices.get(vert, VertexK.hEdge);
+      return this._vertices.hEdge.get(vert, VertexK.hEdge);
    }
    
    setHalfEdge(vert, hEdge) {
-      this._vertices.set(vert, VertexK.hEdge, hEdge);
+      this._vertices.hEdge.set(vert, VertexK.hEdge, hEdge);
    }
    
    findFreeInEdge(vert) {
@@ -423,11 +444,11 @@ class VertexArray {
    
       
    stat() {
-      return "Vertices Count: " + this._vertices.length() + ";\n";
+      return "Vertices Count: " + this._vertices.hEdge.length() + ";\n";
    }
    
    length() {
-      return this._vertices.length();
+      return this._vertices.hEdge.length();
    }
    
    lengthPt() {

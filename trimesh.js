@@ -279,7 +279,7 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    
    setWEdge(dEdge, wEdge) {
       this._dEdges.set(dEdge, dEdgeK.wEdge, wEdge);
-      this._wEdges.left.set(wEdge, 0, dEdge);    // we really don't care who is left, as long as there is one?
+      this._wEdges.left.set(wEdge, 0, dEdge);    // TODO: make sure higher index is the left dEdge, consistency helps in various way
    }
 
    /**
@@ -288,11 +288,19 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
     */
    sharpness(dEdge) {
       const wEdge = this.wEdge(dEdge);
+      return this.wSharpness(wEdge);
+   }
+
+   wSharpness(wEdge) {
       return this._wEdges.sharpness.get(wEdge, 0);
    }
 
    setSharpness(dEdge, sharpness) {
       const wEdge = this.wEdge(dEdge);
+      this.setwSharpness(wEdge, sharpness);
+   }
+
+   setwSharpness(wEdge, sharpness) {
       this._wEdges.sharpness.set(wEdge, 0, sharpness);
    }
    

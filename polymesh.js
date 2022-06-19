@@ -199,11 +199,19 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
     */
    sharpness(hEdge) {
       const wEdge = this.wEdge(hEdge);
+      this.wSharpness(wEdge);
+   }
+
+   wSharpness(wEdge) {
       return this._wEdges.get(wEdge, WingedEdgeK.sharpness);
    }
 
    setSharpness(hEdge, sharpness) {
       const wEdge = this.wEdge(hEdge);
+      this.setwSharpness(wEdge, sharpness);
+   }
+
+   setwSharpness(wEdge, sharpness) {
       this._wEdges.set(wEdge, WingedEdgeK.sharpness, sharpness);
    }
    
