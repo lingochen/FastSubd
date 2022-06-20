@@ -844,7 +844,7 @@ const subdivideLoop = (()=>{
          let sharpness = hEdges.wSharpness(wEdge);
          if ((sharpness < 0) || (sharpness >= 1)) {   // e1
             if (sharpness >= 1) {
-               sharpness /= 2;
+               sharpness -= 1;
             } else {
                valence = 4;                  // boundary, valence == 4
             }
@@ -858,7 +858,7 @@ const subdivideLoop = (()=>{
                q = q*u + (0.5*sharpness);
                r = r*u;
             }
-            sharpness /= 2;
+            sharpness = 0;          // between (0,1) - after subdivide, goes to 0
             // compute smooth, blend mid-Edge
             const leftV1 = hEdges.origin( hEdges.prev(left) );
             const rightV1 = hEdges.origin( hEdges.prev(right) );
@@ -919,7 +919,7 @@ const subdivideLoop = (()=>{
       // copy over and setup hEdge pointer
       for (let vertex of srcV) {
          const valence = srcV.valence(vertex);
-         const crease = srcV.crease(vertex);
+         let crease = srcV.crease(vertex);
          if (crease < 0) {             // corner, don't change
             vec3.copy(dest, vertex*3, src, vertex*3);
          } else if (crease >= 1) {     // crease
@@ -931,6 +931,7 @@ const subdivideLoop = (()=>{
                }
             }
             vec3.copy(dest, vertex*3, pt, 0);
+            crease -= 1;
          } else {
             // compute push down
             let beta = 3/16;
@@ -959,13 +960,14 @@ const subdivideLoop = (()=>{
             }
 
             vec3.copy(dest, vertex*3, pt, 0);
+            crease = 0;
          }
 
 
          const hEdge = srcV.halfEdge(vertex);
          subd.v.setHalfEdge(vertex, computeSubdividehEdge(hEdge));
          subd.v.setValence(vertex, valence);         // valence of the original vertex don't change
-         subd.v.setCrease(vertex, crease/2);
+         subd.v.setCrease(vertex, crease);
       }
    }
    
