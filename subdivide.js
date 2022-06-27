@@ -54,6 +54,9 @@ const subdivideCC = (()=>{
          // point to first halfEdge's expansion.
          const hEdge = source.f.halfEdge(face);
          subd.v.setHalfEdge(offset+face, hEdge * 4 + 3);
+         // add attribute, valence and crease.
+         subd.v.setValence(offset+face, count);
+         subd.v.setCrease(offset+face, 0);
          
          // copy attributes, and (not subdivide face?)
          for (let hEdge of source.f.halfEdgeIter(face)) {
@@ -64,9 +67,19 @@ const subdivideCC = (()=>{
 
    /**
       add point to the middle of edge
+
+      (B.1) New boundary/crease edge points – the midpoint of the old edge
+
+      (B.2) New smooth edge points – the average of the point produced
+            by the boundary edge rule with the average of the two new face
+            points of the faces sharing that edge
+
+      (B.3) New blending crease points – the linear interpolation of point
+            rules (B.1) and (B.2) with weight σ ∈ [0, 1)
    */
    function refineEdge(subd, source) {
       const src = source.v.positionBuffer();
+      const srcH = source.h;
       const dest = subd.v.positionBuffer();
    
       const midEdge = [0.0, 0.0, 0.0];
@@ -76,30 +89,38 @@ const subdivideCC = (()=>{
       let offsetFace = source.v.lengthPt();
       let offset =  offsetFace + source.f.length();
       for (let [wEdge, left, right] of source.h) {
-         let count = 2;
-         
-         vec3.add(midEdge, 0, src, source.h.position(left)*3, src, source.h.position(right)*3);
-         smoothMid[0]=smoothMid[1]=smoothMid[2]=0.0;
-         let face = source.h.face(left);
-         if (!PolygonK.isHole(face)) {
-            count++;
+         let valence = 4;
+         let sharpness = srcH.wSharpness(wEdge);
+
+         if ((sharpness < 0) || (sharpness >= 1)) {   // b1
+            vec3.add(midEdge, 0, src, source.h.position(left)*3, src, source.h.position(right)*3);
+            vec3a.scale(midEdge, 0, 0.5);
+            if (sharpness < 0) {
+               valence = 3;         // assume impossible to have empty face on both side of edge, bad geometry.
+            } else {
+               sharpness -= 1;
+            }
+         } else {                                     // b2 or b3, count=4, guaranteed.
+            const smooth = 1 - sharpness;
+            const u = 1/4 * smooth + 1/2 * sharpness;
+            const v = 1/4 * smooth;
+
+            vec3.add(midEdge, 0, src, srcH.position(left)*3, src, srcH.position(right)*3);
+            vec3a.scale(midEdge, 0, u);
+
+            let face = srcH.face(left);
+            vec3.copy(smoothMid, 0, dest, (offsetFace+face)*3);
+            face = srcH.face(right);
             vec3a.add(smoothMid, 0, dest, (offsetFace+face)*3);
+            vec3a.scaleAndAdd(midEdge, 0, smoothMid, 0, v);
+            sharpness = 0;
          }
-         face = source.h.face(right);
-         if (!PolygonK.isHole(face)) {
-            count++;
-            vec3a.add(smoothMid, 0, dest, (offsetFace+face)*3);
-         }
-         vec3a.add(smoothMid, 0, midEdge, 0);
-         vec3a.scale(midEdge, 0, 0.5);
-         vec3a.scale(smoothMid, 0, 1.0/count); 
-         // write result,
-         const edgeWeight = (count === 4) ? 1.0 : 0.0;  // check for boundary condition?
-         vec3.lerp(dest, (offset + wEdge) * 3, 
-                   midEdge, 0, smoothMid, 0, 
-                   edgeWeight);
+         vec3.copy(dest, (offset+wEdge)*3, midEdge, 0);
+
          // v'halfEdge point to newly expanded wEdge's halfEdge 
          subd.v.setHalfEdge(offset+wEdge, left*4 + 2); 
+         subd.v.setValence(offset+wEdge, valence);
+         subd.v.setCrease(offset+wEdge, sharpness);
          
          // copy left(even) and right(odd) attribute, and compute new one.
          attr.init(left);
@@ -120,35 +141,91 @@ const subdivideCC = (()=>{
    
    /**
       push down the vertex point.
+
+      (C.1) New boundary/corner vertex points – old vertex point
+
+      (C.2) New smooth vertex points – the average Q/n + 2R/n + S(n − 3)/n
+            Q = the average of the new face points of all faces adjacent to the old vertex point.
+            R = the average of the midpoints of all edges incident to the old vertex point.
+            S = old vertex point.
+            n = valence of the old vertex point.
+
+      (C.3) New blended vertex points – the linear interpolation of point rules (C.2) and (C.4) with weight σ̄ ∈ [0, 1)
+
+      (C.4) New creased vertex points – the average (A + 6S + B)/8
+            A = the vertex point that forms the first crease incident to S
+            B = the vertex point that forms the second crease incident to S.
+            S = the old vertex point.
    */
    function refineVertex(subd, source) {
       const src = source.v.positionBuffer();
       const dest = subd.v.positionBuffer();
+      const srcV = source.v;
+      const srcH = source.h;
+      const destV = subd.v;
 
-      const smoothPt = [0, 0, 0];
+      const smoothPt = [0, 0, 0], creasePt = [0, 0, 0];
    
       let offsetFace = source.v.lengthPt();
       let offsetEdge = offsetFace + source.f.length();
-      for (let vertex of source.v) {
-         smoothPt[0] = smoothPt[1]= smoothPt[2] = 0.0;
-         let valence = 0;
-         for (let hEdge of source.v.outEdgeIter(vertex)) {
-            let face = source.h.face(hEdge);
-            if (!PolygonK.isHole(face)) {  // TODO: reconsider how to add empty face
-               vec3a.scaleAndAdd(smoothPt, 0, dest, (offsetFace+face)*3, -1.0);
+      for (let vertex of srcV) {
+         const valence = srcV.valence(vertex);
+         let crease = srcV.crease(vertex);
+         if (crease < 0) {          // c1, corner/boundary, copy
+            vec3.copy(dest, vertex*3, src, vertex*3);
+         } else if (crease >= 1) {  // c4, crease, guarantee to be 2 sharpness edge
+            creasePt[0] = creasePt[1] = creasePt[2] = 0.0;
+            for (const hEdge of srcV.inEdgeIter(vertex)) {
+               if (srcH.sharpness(hEdge) > 0) {    // TODO: early exit?
+                  const out = srcH.origin(hEdge);
+                  vec3a.add(creasePt, 0, src, out*3);
+               }
             }
-            vec3a.scaleAndAdd(smoothPt, 0, dest, (offsetEdge+source.h.wEdge(hEdge))*3, 4.0);
-            ++valence;
+            vec3a.scale(creasePt, 0, 1/8);
+            vec3.scaleAndAdd(dest, vertex*3, creasePt, 0, src, vertex*3, 6/8);
+            crease -=1;
+         } else if (crease === 0) {                   // c3, smooth
+            smoothPt[0] = smoothPt[1]= smoothPt[2] = 0.0;
+            for (let hEdge of source.v.outEdgeIter(vertex)) {
+               let face = source.h.face(hEdge);
+               vec3a.scaleAndAdd(smoothPt, 0, dest, (offsetFace+face)*3, -1.0);
+               vec3a.scaleAndAdd(smoothPt, 0, dest, (offsetEdge+srcH.wEdge(hEdge))*3, 4.0);
+            }
+            // write out average point result
+            vec3a.scale(smoothPt, 0, 1.0 / (valence*valence));
+            vec3.scaleAndAdd(dest, vertex*3,
+                              smoothPt, 0,
+                              src, vertex*3,
+                              1.0 - 3.0 / valence);
+         } else {                                     // c4, blend
+            smoothPt[0] = smoothPt[1] = smoothPt[2] = 0.0;
+            creasePt[0] = creasePt[1] = creasePt[3] = 0.0;
+            for (const hEdge of srcV.inEdgeIter(vertex)) {
+               const face = source.h.face(hEdge);
+               vec3a.scaleAndAdd(smoothPt, 0, dest, (offsetFace+face)*3, -1.0);
+               const wEdge = srcH.wEdge(hEdge);
+               if (srcH.wSharpness(wEdge) > 0) {
+                  vec3a.add(creasePt, 0, src, srcH.origin(hEdge)*3);
+               }
+               vec3a.scaleAndAdd(smoothPt, 0, dest, (offsetEdge+wEdge)*3, 4.0);
+            }
+            // write out average point result
+            vec3a.scale(creasePt, 0, 1/8);
+            vec3a.scaleAndAdd(creasePt, 0, src, vertex*3, 6/8);
+            vec3a.scale(smoothPt, 0, 1.0 / (valence*valence));
+            vec3a.scaleAndAdd(smoothPt, 0,
+                              src, vertex*3,
+                              1.0 - 3.0 / valence);
+            vec3.lerp(dest, vertex*3, smoothPt, 0, creasePt, 0, crease);
+            crease = 0;
          }
-         // write out average point result
-         vec3a.scale(smoothPt, 0, 1.0 / (valence*valence));
-         vec3.scaleAndAdd(dest, vertex*3, 
-                           smoothPt, 0, 
-                           src, vertex*3,
-                           1.0 - 3.0 / valence);
+
          // readjust to expand halfEdge
          let hEdge = source.v.halfEdge(vertex);
-         subd.v.setHalfEdge(vertex, hEdge * 4 + (HalfEdgeK.isOdd(hEdge)? 1 : 0));
+         destV.setHalfEdge(vertex, hEdge * 4 + (HalfEdgeK.isOdd(hEdge)? 1 : 0));
+         // copy attributes, valence, crease.
+         destV.setValence(vertex, valence);
+         destV.setCrease(vertex, crease);
       }
    }
 
