@@ -283,7 +283,11 @@ class VertexArray {
                if (creaseCount < 3) {
                   let value = this._hEdges.sharpness(current);
                   if (value > 0) {
-                     sharpness += value;
+                     if (sharpness !== 0) {  // get minimum excluding zero
+                        sharpness = Math.min(sharpness, value);
+                     } else {
+                        sharpness = value;
+                     }
                      creaseCount++;
                   } else if (value < 0) { // boundaryEdge create corner like condition.
                      creaseCount = 3;
@@ -300,7 +304,7 @@ class VertexArray {
             if (creaseCount > 2) {
                this.setCrease(i, -1);
             } else if (creaseCount === 2) {
-               this.setCrease(i, sharpness/2.0);
+               this.setCrease(i, sharpness);
             } else {
                this.setCrease(i, 0);
             }
