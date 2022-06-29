@@ -75,7 +75,8 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    }
 
    * boundaryIter() {
-      for (let i = 1; i < this._fEdges.length(); ++i) {
+      const length = this._fEdges.length();
+      for (let i = 1; i < length; ++i) {
          if (this._fEdges.get(i, fEdgeK.hole) < 0) {
             yield -i;
          }
@@ -141,7 +142,6 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
          const nextNext = this._fEdges.get(-next, fEdgeK.next);
          this._fEdges.set(0, fEdgeK.next, nextNext);
          this._freeBoundaryCount--;
-         return next;
       } else { // allocated a new one. return negative handle.
          next = -(this._fEdges.alloc());
       }
@@ -448,8 +448,9 @@ class TriangleArray extends FaceArray {
       for (let face of this) {
          let hEdge = face * 3;
          for (let i = 0; i < 3; ++i) {
-            if (this._dEdges.isBoundary(this._dEdges.pair(hEdge+i))) {
-               console.log("triangle: " + face + " has boundary on index: " + i);
+            const pair = this._dEdges.pair(hEdge+i);
+            if (this._dEdges.isBoundary(pair)) {
+               console.log("triangle: " + face + " has boundary: " + pair + " on index: " + i);
             }
          }
       }
