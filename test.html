@@ -224,17 +224,16 @@
    }
     
 
-   function bindMenu(id, url, triFlag, camera) {
+   function bindMenu(id, url, options, camera) {
       let button = document.getElementById(id);
       button.addEventListener("click", (ev)=>{
          document.getElementById("selectSubdivision").classList.add("hide");
-         if (triFlag) { // triangle subdivision
-            showTriSubd(triFlag);
+         if (options.subd === "tri") { // triangle subdivision
+            showTriSubd(true);
          } else { // polygon subdivision
             showCC();
          }
-         let triOnly = (triFlag === true) || (triFlag === 1);
-         readFile(url, triOnly, camera).then((subd)=>{
+         readFile(url, options, camera).then((subd)=>{
             source = subd;
             log.textContent = subd.stat();
             document.getElementById("selectSubdivision").classList.remove("hide");
@@ -243,12 +242,14 @@
        });
    }
 
-   bindMenu("triangle", "./meshes/testing/triangle.obj", true, {position: [0, 1, 3]});
-   bindMenu("figure", "./meshes/testing/figure.obj	", true, {position: [0, 2, 10]});
-   bindMenu("pyramid", "meshes/testing/pyramid.obj", false, {position: [0, 1, 6]});
-   bindMenu("pyramidTri", "./meshes/testing/pyramid_tri.obj", true, {position: [0, 1, 6]});
-   bindMenu("pyramidCreased", "./meshes/testing/pyramid_creased.obj", false, {position: [0, 1, 6]});
-   bindMenu("pyramidTriCreased", "./meshes/testing/pyramid_creased_tri.obj", true, {position: [0, 1, 6]});
-   bindMenu("loopCubeSemi", "./meshes/testing/loop_cubes_semisharp.obj", true, {position: [0, 3, 4]});
+   const tri = {tri: true, subd: "tri", zUp: true};
+   const cc = {tri: false, subd: "cc", zUp: true};
+   bindMenu("triangle", "./meshes/testing/triangle.obj", tri, {position: [0, 1, 3]});
+   bindMenu("figure", "./meshes/testing/figure.obj	", tri, {position: [0, 2, 10]});
+   bindMenu("pyramid", "meshes/testing/pyramid.obj", cc, {position: [0, 1, 6]});
+   bindMenu("pyramidTri", "./meshes/testing/pyramid_tri.obj", tri, {position: [0, 1, 6]});
+   bindMenu("pyramidCreased", "./meshes/testing/pyramid_creased.obj", cc, {position: [0, 1, 6]});
+   bindMenu("pyramidTriCreased", "./meshes/testing/pyramid_creased_tri.obj", tri, {position: [0, 1, 6]});
+   bindMenu("loopCubeSemi", "./meshes/testing/loop_cubes_semisharp.obj", tri, {position: [0, 3, 4]});
 </script>
 </html>

@@ -209,7 +209,7 @@ function render(time) {
 
 
 const modelRead = new Map;
-async function readFile(ccmUrl, triangleOnly, camera) {
+async function readFile(ccmUrl, options, camera) {
    if (modelRead.has(ccmUrl)) {
       const source = modelRead.get(ccmUrl);
       setRenderData(source);
@@ -226,7 +226,7 @@ async function readFile(ccmUrl, triangleOnly, camera) {
    }
 
    const blob = await (await fetch(ccmUrl)).blob(); 
-   return importObj([blob], new Importer(info.gl, info.depot, loadAsync, path, triangleOnly)).then(scene=>{
+   return importObj([blob], new Importer(info.gl, info.depot, loadAsync, path, options)).then(scene=>{
       /*for (let mesh of scene.world) {
          console.log("mesh integrity check: " + mesh.sanityCheck());
          console.log(mesh.stat());

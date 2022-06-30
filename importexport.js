@@ -8,11 +8,13 @@
 import {PolyMesh} from './polymesh.js';
 import {TriMesh} from './trimesh.js';
 import {blinnPhongToPBR, defaultPBR} from './material.js';
+import * as Mat4 from './mat4.js';
+import {vec3a} from './vec3.js';
 
 
 
 class Importer {
-   constructor(gl, depot, loadAsync, path, triangleOnly) {
+   constructor(gl, depot, loadAsync, path, options) {
       this._gl = gl;
       this._depot = depot;
       this._loadAsync = loadAsync;
@@ -25,7 +27,15 @@ class Importer {
       this._uvMapping = {};
       this._non_manifold = [];
       this._polygonProcessed = 0;
-      this._triangleOnly = triangleOnly;
+      this._triangleOnly = options.tri;
+      this._zUp = Mat4.identity();
+      if (options.zUp) {
+         this._zUp = [1, 0,  0, 0,
+                      0, 0, -1, 0,
+                      0, 1,  0, 0,
+                      0, 0,  0, 1];
+      }
+
       // add an initial group
       this.addObject("");
    }
@@ -83,6 +93,7 @@ class Importer {
    
    addVertex(vert) {
       // should we do error check?
+      vec3a.transformMat4(vert, this._zUp);
       const vertex = this._currentMesh.addVertex(vert, 0);   // meshlab produced vertex with color. we want to support this tool
       this._vertexMapping.push(vertex);
    }

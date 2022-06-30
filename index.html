@@ -112,6 +112,7 @@
       <li id="fox"><a href="#">Fox</a></li>
       <li id="pig"><a href="#">Pig</a></li>
       <li id="spotTri"><a href="#">Spot</a></li>
+      <li id="car"><a href="#">Car</a></li>
     </ul>
     <p>Catmull-Clark</p>
     <ul>
@@ -235,17 +236,16 @@
    }
     
 
-   function bindMenu(id, url, triFlag, camera) {
+   function bindMenu(id, url, options, camera) {
       let button = document.getElementById(id);
       button.addEventListener("click", (ev)=>{
          document.getElementById("selectSubdivision").classList.add("hide");
-         if (triFlag) { // triangle subdivision
-            showTriSubd(triFlag);
+         if (options.subd === "tri") { // triangle subdivision
+            showTriSubd(true);
          } else { // polygon subdivision
             showCC();
          }
-         let triOnly = (triFlag === true) || (triFlag === 1);
-         readFile(url, triOnly, camera).then((subd)=>{
+         readFile(url, options, camera).then((subd)=>{
             source = subd;
             log.textContent = subd.stat();
             document.getElementById("selectSubdivision").classList.remove("hide");
@@ -254,22 +254,27 @@
        });
    }
 
-   bindMenu("cube", "./meshes/cube/cube.obj", true, {position: [0, 1, 3]});
-   bindMenu("tetrahedron", "./meshes/tetrahedron.obj", 2, {position: [0, 1, 3]});
-   bindMenu("tetraHole", "meshes/tetra-hole.obj", true, {position: [0, 1, 3]});
-   bindMenu("pig", "./meshes/pig/pig.obj", true, {position: [0, 1, 2]});
-   bindMenu("fox", "./meshes/fox.obj", true, {position: [0, 3, 16]});
-   bindMenu("bunny", "./meshes/bunny.obj", true, {position: [0, 1, 2]});
-   bindMenu("hua", "./meshes/hua.obj", true, {});
-   bindMenu("spotTri", "./meshes/spot/spot_tri.obj", true, {position: [0, 1, 3]});
+   const tri0 = {tri: true, subd: "tri", zUp: false},
+         tri1 = {tri: true, subd: "cc", zUp: false},
+         tri2 = {tri: true, subd: "tri", zUp: true}; 
+   bindMenu("cube", "./meshes/cube/cube.obj", tri0, {position: [0, 1, 3]});
+   bindMenu("tetrahedron", "./meshes/tetrahedron.obj", tri0, {position: [0, 1, 3]});
+   bindMenu("tetraHole", "meshes/tetra-hole.obj", tri0, {position: [0, 1, 3]});
+   bindMenu("pig", "./meshes/pig/pig.obj", tri0, {position: [0, 1, 2]});
+   bindMenu("fox", "./meshes/fox.obj", tri0, {position: [0, 3, 16]});
+   bindMenu("bunny", "./meshes/bunny.obj", tri0, {position: [0, 1, 2]});
+   bindMenu("hua", "./meshes/hua.obj", tri0, {});
+   bindMenu("spotTri", "./meshes/spot/spot_tri.obj", tri0, {position: [0, 1, 3]});
+   bindMenu("car", "./meshes/carT.obj", tri2, {position: [0, 3, 5]});
    
-   bindMenu("cube2", "./meshes/box.obj", false, {position: [0,1,3]});
-   bindMenu("arrow", "./meshes/arrow.obj", false, {});
-   bindMenu("spot", "./meshes/spot/spot_control_mesh.obj", false, {position: [0, 1, 3]});
-   bindMenu("monsterfrog", "./meshes/monsterfrog.obj", false, {position: [0, 10, 80], zFar: 110});
-   bindMenu("pigCC", "./meshes/pig/pig_quad_controlmesh.obj", false, {position: [0, 1, 2]});
-   bindMenu("bigguy", "./meshes/bigguy.obj", false, {position: [0, 8, 25]});
-   bindMenu("robot", "meshes/robot.obj", false, {});
+   const cc = {tri: false, subd: "cc", zUp: false};
+   bindMenu("cube2", "./meshes/box.obj", cc, {position: [0,1,3]});
+   bindMenu("arrow", "./meshes/arrow.obj", cc, {});
+   bindMenu("spot", "./meshes/spot/spot_control_mesh.obj", cc, {position: [0, 1, 3]});
+   bindMenu("monsterfrog", "./meshes/monsterfrog.obj", cc, {position: [0, 10, 80], zFar: 110});
+   bindMenu("pigCC", "./meshes/pig/pig_quad_controlmesh.obj", cc, {position: [0, 1, 2]});
+   bindMenu("bigguy", "./meshes/bigguy.obj", cc, {position: [0, 8, 25]});
+   bindMenu("robot", "meshes/robot.obj", cc, {});
 
 </script>
 </html>
