@@ -22,9 +22,13 @@ const PixelTypeK = {
 Object.freeze(PixelTypeK);
 const PixelFormatK = {
    RED: 0x1903,
+   RED_INTEGER: 0x8D94,
    RG: 0x8227,
+   RG_INTEGER: 0x8228,
    RGB: 0x1907,
+   RGB_INTEGER: 0x8D98,
    RGBA: 0x1908,
+   RGBA_INTEGER: 0x8D99,
 };
 Object.freeze(PixelFormatK);
 const PixelInternalFormatK = {
@@ -214,6 +218,11 @@ class PixelArray {
       data[2] = this._get(index+2);
       data[3] = this._get(index+3);
    }
+
+   _setValues(index, array) {
+      this._blob.set(array, index);
+      return true;
+   }
    
    _setNoCheck(index, newValue) {
       this._blob[index] = newValue;
@@ -295,21 +304,21 @@ class PixelArray {
 
 class Int32PixelArray extends PixelArray {
    constructor(structSize, numberOfChannel, allocationSize) {
-      let format = PixelFormatK.RED;
+      let format = PixelFormatK.RED_INTEGER;
       let internalFormat = PixelInternalFormatK.R32I;
       switch (numberOfChannel) {
          case 1:
             break;
          case 2:
-            format = PixelFormatK.RG;
+            format = PixelFormatK.RG_INTEGER;
             internalFormat = PixelInternalFormatK.RG32I;
             break;
         case 3:
-            format = PixelFormatK.RGB;
+            format = PixelFormatK.RGB_INTEGER;
             internalFormat = PixelInternalFormatK.RGB32I;
             break;
         case 4:
-            format = PixelFormatK.RGBA;
+            format = PixelFormatK.RGBA_INTEGER;
             internalFormat = PixelInternalFormatK.RGBA32I;
             break; 
         default:
@@ -600,9 +609,40 @@ const fromHalf = function(binary) {
 };
 
 
+const createDataTexture3D = function(array, gl) {
+   const uvs = [];
+   const param = array[0].getTextureParameter();
+   for (let uv of array) {
+      uvs.push( uv.getBuffer() );
+   }
+   const tex = makeDataTexture3D(gl, uvs, param.internalFormat, param.format, param.type, uvs[0].length/param.channelCount);
+   return tex;
+}
+
+
+const createDataTexture3DInt32 = function(array, gl) {
+   const uvs = [];
+   let temp;
+   for (let uv of array) {
+      temp = new Int32PixelArray(1, 1, uv.length);
+      temp.allocEx(uv.length);
+      temp._setValues(0, uv);
+      uvs.push( temp.getBuffer() );
+   }
+   if (temp) {
+      const param = temp.getTextureParameter();
+      return makeDataTexture3D(gl, uvs, param.internalFormat, param.format, param.type, uvs[0].length/param.channelCount);
+   }
+   return null;
+}
+
+
+
 export {
    Int32PixelArray,
    Float32PixelArray,
    Float16PixelArray,
    TexCoordPixelArray3D,
+   createDataTexture3D,
+   createDataTexture3DInt32,
 }

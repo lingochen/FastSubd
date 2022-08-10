@@ -13,7 +13,7 @@
 
 - webworker parallel subidivision support. 
 
-- investigated reconsider how to represent attributes.
+- <s>investigated reconsider how to represent attributes.</s> @done, (2022/08/10)[no change](uv_texcoord.md)
 
 - Displaced Subdivision Surface.
 

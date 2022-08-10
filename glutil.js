@@ -5,6 +5,9 @@
 
 function setUniform(gl, setter, uniformInfo) {
    switch (uniformInfo.type) {
+      case "i":
+         gl.uniform1i(setter.loc, uniformInfo.value);
+         break;
       case "ivec3":
          gl.uniform3iv(setter.loc, uniformInfo.value);
       break;
