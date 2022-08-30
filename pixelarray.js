@@ -49,7 +49,18 @@ Object.freeze(PixelInternalFormatK);
 
 /** class managing typedArray so that it can be used as gpu Texture directly. */
 class PixelArray {
-   /** 
+   // should be called by create/workerCopy only.
+   constructor(pixel, record, blob) {
+      this._pixel = pixel;
+      this._rec = record;
+      this._blob = blob;
+      this._set = this._setWithCheck;
+      if (blob) {
+         this._set = this._setNoCheck; // must be workerCopy, used by subdivide, so don't check.
+      }
+   }
+
+   /**
     * create typedArray with specfic type.
     * @param {number} structSize - the size of structure we want to represent
     * @param {number} channelPrecision - # of bytes of TypedArray typed.
@@ -57,22 +68,30 @@ class PixelArray {
     * @param {number} internalFormat - specific precision format.
     * @param {number} pixelFormat - webgl format.
     */
-   constructor(structSize, channelPrecision, channelCount, internalFormat, pixelFormat) {
-      this._blob = null;
-      //this._structSize = structSize;  
-      this._pixel = {
+   static _createInternal(structSize, channelPrecision, channelCount, internalFormat, pixelFormat) {
+      //this._structSize = structSize;
+      const pixel = {
          byteCount: channelPrecision,                                // format's size in byte.
          channelCount: channelCount,                                 // number of channels per pixel. ie.. (rgba) channels
          internalFormat, internalFormat,
          format: pixelFormat,                                        // the real webgl format.
-      };                        
-      this._structStride = Math.ceil(structSize/channelCount)*channelCount;   // number of pixels to store a structure.
+      };
+      const record = {
+         structStride: Math.ceil(structSize/channelCount)*channelCount,   // number of pixels to store a structure.
       //this._allocatedStruct = 0;                                   // number of structure allocated.
-      this._usedSize = 0;                                            // current allocated array in native type
-      this._gpuSize = 0;                                             // current allocated gpu texture in native type.
-      this._alteredMin = 0;                                          // in native type
-      this._alteredMax = -1;
-      this._set = this._setWithCheck;
+         usedSize: 0,                                            // current allocated array in native type
+         gpuSize: 0,                                             // current allocated gpu texture in native type.
+         alteredMin: 0,                                          // in native type
+         alteredMax: -1,
+      }
+      //self._set = this._setWithCheck;
+      return [pixel, record];
+   }
+
+   getShared(obj) {
+      obj._pixel = this._pixel;
+      obj._rec = this._rec;
+      obj._sharedBuffer = this._blob.buffer;
    }
 
    /**
@@ -80,7 +99,7 @@ class PixelArray {
     * @returns {number} - total used bytes.
     */
    byteLength() {
-      return this._usedSize * this._pixel.byteCount;
+      return this._rec.usedSize * this._pixel.byteCount;
    }
    
    /**
@@ -88,7 +107,7 @@ class PixelArray {
     * @returns {number} - current used length. not typed length but struct length
     */
    length() {
-      return (this._usedSize / this._structStride);
+      return (this._rec.usedSize / this._rec.structStride);
    }
 
 
@@ -105,7 +124,7 @@ class PixelArray {
     * @returns {typedArray} - subarray of currently used typedArray 
     */
    makeUsedBuffer() {
-      return this._blob.subarray(0, this._usedSize);
+      return this._blob.subarray(0, this._rec.usedSize);
    }
 
    createDataTexture(gl) {
@@ -128,8 +147,8 @@ class PixelArray {
     * @returns {Object} - return {offset, subArray} of current changed typedArray.
     */
    getChanged() {
-      let start = Math.floor(this.alteredMin/this._structStride) * this._structStride;
-      let end =  (Math.floor(this.alteredMax/this._structStride)+1) * this._structStride;
+      let start = Math.floor(this._rec.alteredMin/this._rec.structStride) * this._rec.structStride;
+      let end =  (Math.floor(this._rec.alteredMax/this._rec.structStride)+1) * this._rec.structStride;
       return {byteOffset: start*this._pixel.byteCount,
               array: this._blob.subarray(start, end)};
    }
@@ -137,8 +156,8 @@ class PixelArray {
    getInterval(formatChannel) {
       const ret = {start: 0, end: 0};
       if (this.isAltered()) {
-         ret.start = Math.floor(this.alteredMin/formatChannel) * formatChannel;
-         ret.end =  (Math.floor(this.alteredMax/formatChannel)+1) * formatChannel;
+         ret.start = Math.floor(this._rec.alteredMin/formatChannel) * formatChannel;
+         ret.end =  (Math.floor(this._rec.alteredMax/formatChannel)+1) * formatChannel;
       }
       return ret;
    }
@@ -147,19 +166,19 @@ class PixelArray {
     * 
     */
    alloc() {
-      const index = this._usedSize / this._structStride;
-      this._usedSize += this._structStride;
-      if (this._usedSize > this._blob.length) {
+      const index = this._rec.usedSize / this._rec.structStride;
+      this._rec.usedSize += this._rec.structStride;
+      if (this._rec.usedSize > this._blob.length) {
          this.expand();
       }
       return index;
    }
    
    allocEx(size) {
-      const index = this._usedSize / this._structStride;
-      this._usedSize += this._structStride * size;
-      if (this._usedSize > this._blob.length) {
-         this.expand(this._usedSize);
+      const index = this._rec.usedSize / this._rec.structStride;
+      this._rec.usedSize += this._rec.structStride * size;
+      if (this._rec.usedSize > this._blob.length) {
+         this.expand(this._rec.usedSize);
       }
       return index;
    }
@@ -170,21 +189,25 @@ class PixelArray {
    }
 
    /**
-    * expand by 1.5x.
+    * expand by 1.5x of oldSize if not given a newSize.
     */
    expand(newSize) {
       if (!newSize) {   // resize to larger by 1.5x of oldSize
-         const oldSize = this._blob.length;
-         newSize = oldSize * 1.5;
+         newSize = MAX_TEXTURE_SIZE;
+         if (this._blob) {
+            newSize = 1.5 * this._blob.length;
+         }
       }
 
       const oldBuffer = this._blob;
       this._blob = this._allocateBuffer(newSize);
-      this._blob.set(oldBuffer);
+      if (oldBuffer) {
+         this._blob.set(oldBuffer);
+      }
    }
    
    addToVec2(data, index, field) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       data[0] += this._get(index);
       data[1] += this._get(index+1);
       return data;
@@ -195,24 +218,24 @@ class PixelArray {
    }
 
    get(index, field) {
-      return this._blob[index*this._structStride + field];
+      return this._blob[index*this._rec.structStride + field];
    }
 
    getVec2(index, field, data) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       data[0] = this._get(index);
       data[1] = this._get(index+1);
    }
    
    getVec3(index, field, data) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       data[0] = this._get(index);
       data[1] = this._get(index+1);
       data[2] = this._get(index+2);
    }
    
    getVec4(index, field, data) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       data[0] = this._get(index);
       data[1] = this._get(index+1);
       data[2] = this._get(index+2);
@@ -232,11 +255,11 @@ class PixelArray {
    _setWithCheck(index, newValue) {
       if (this._blob[index] !== newValue) {
          this._blob[index] = newValue;
-         if (index < this._alteredMin) {
-            this._alteredMin = index;
+         if (index < this._rec.alteredMin) {
+            this._rec.alteredMin = index;
          }
-         if (index > this._alteredMax) {
-            this._alteredMax = index;
+         if (index > this._rec.alteredMax) {
+            this._rec.alteredMax = index;
          }
          return true;
       }
@@ -244,19 +267,19 @@ class PixelArray {
    }
 
    set(index, field, newValue) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       return this._set(index, newValue);
    }
    
    setVec2(index, field, data) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       let ret = this._set(index, data[0]);            // TODO: is it better to use bitwise (!) ?
       ret = this._set(index+1, data[1]) || ret;
       return ret;
    }
    
    setVec3(index, field, data) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       let ret = this._set(index, data[0]);
       ret = this._set(index+1, data[1]) || ret;
       ret = this._set(index+2, data[2]) || ret;
@@ -264,7 +287,7 @@ class PixelArray {
    }
    
    setVec4(index, field, data) {
-      index = index * this._structStride + field;
+      index = index * this._rec.structStride + field;
       let ret = this._set(index, data[0]);
       ret = this._set(index+1, data[1]) || ret;
       ret = this._set(index+2, data[2]) || ret;
@@ -284,26 +307,38 @@ class PixelArray {
     * after copying memory to gpu, reset the alteredXXX.
     */
    _resetCounter() {
-      this.alteredMin = this._blob ? this._blob.length : 0;
-      this.alteredMax = -1;
+      this._rec.alteredMin = this._blob ? this._blob.length : 0;
+      this._rec.alteredMax = -1;
    }
 
    _resetLength() {
-      this._gpuSize = this._usedSize;
+      this._rec.gpuSize = this._rec.usedSize;
    };
 
    isAltered() {
-      return (this.alteredMin <= this.alteredMax);
+      return (this._rec.alteredMin <= this._rec.alteredMax);
    };
 
    isLengthAltered() {
-      return (this.gpuSize !== this.usedSize); 
+      return (this._rec.gpuSize !== this._rec.usedSize);
    }
 }
 
 
 class Int32PixelArray extends PixelArray {
-   constructor(structSize, numberOfChannel, allocationSize) {
+   constructor(pixel, record, blob) {
+      super(pixel, record, blob);
+   }
+
+   static copyShared(self) {
+      if (self._pixel && self._rec && self._sharedBuffer) {
+         const blob = new Int32Array(self._sharedBuffer);
+         return new Int32PixelArray(self._pixel, self._rec, blob);
+      }
+      throw("Int32PixelArray copyShared: bad input");
+   }
+
+   static create(structSize, numberOfChannel, allocationSize) {
       let format = PixelFormatK.RED_INTEGER;
       let internalFormat = PixelInternalFormatK.R32I;
       switch (numberOfChannel) {
@@ -320,20 +355,19 @@ class Int32PixelArray extends PixelArray {
         case 4:
             format = PixelFormatK.RGBA_INTEGER;
             internalFormat = PixelInternalFormatK.RGBA32I;
-            break; 
+            break;
         default:
            console.log("Unsupport # of pixel channel: " + numberOfChannel);
       }
       // now allocated data
-      super(structSize, 4, numberOfChannel, internalFormat, format);
-      if (!allocationSize) {
-         allocationSize = MAX_TEXTURE_SIZE;
-      }
-      this._blob = this._allocateBuffer(allocationSize);
+      const [pixel, record] = PixelArray._createInternal(structSize, 4, numberOfChannel, internalFormat, format);
+      const ret = new Int32PixelArray(pixel, record, null);
+      ret.expand(allocationSize);
+      return ret;
    }
    
    _allocateBuffer(size) {
-      return new Int32Array(this.computeAllocateSize(size));
+      return new Int32Array(new SharedArrayBuffer(this.computeAllocateSize(size)*4));
    }
 
    _getType() {
@@ -343,7 +377,19 @@ class Int32PixelArray extends PixelArray {
 
 
 class Float32PixelArray extends PixelArray {
-   constructor(structSize, numberOfChannel, allocationSize) {
+   constructor(pixel, record, blob) {
+      super(pixel, record, blob);
+   }
+
+   static copyShared(self) {
+      if (self._pixel && self._rec && self._sharedBuffer) {
+         const blob = new Float32Array(self._sharedBuffer);
+         return new Float32PixelArray(self._pixel, self._rec, blob);
+      }
+      throw("Float32PixelArray copyShared: bad Input");
+   }
+
+   static create(structSize, numberOfChannel, allocationSize) {
       let format = PixelFormatK.RED;
       let internalFormat = PixelInternalFormatK.R32F;
       switch (numberOfChannel) {
@@ -365,15 +411,14 @@ class Float32PixelArray extends PixelArray {
            console.log("Unsupport # of pixel channel: " + numberOfChannel);
       }
       // now allocated data
-      super(structSize, 4, numberOfChannel, internalFormat, format);
-      if (!allocationSize) {
-         allocationSize = MAX_TEXTURE_SIZE;
-      }
-      this._blob = this._allocateBuffer(allocationSize);
+      const [pixel, record] = PixelArray._createInternal(structSize, 4, numberOfChannel, internalFormat, format);
+      const ret = new Float32PixelArray(pixel, record, null);
+      ret.expand(allocationSize);
+      return ret;
    }
    
    _allocateBuffer(size) {
-      return new Float32Array(this.computeAllocateSize(size));
+      return new Float32Array(new SharedArrayBuffer(this.computeAllocateSize(size)*4));
    }
 
    _getType() {
@@ -383,7 +428,19 @@ class Float32PixelArray extends PixelArray {
 
 
 class Float16PixelArray extends PixelArray {
-   constructor(structSize, numberOfChannel, allocationSize) {
+   constructor(pixel, record, blob) {
+      super(pixel, record, blob);
+   }
+
+   static copyShared(pixel, record, sharedBuffer) {
+      if (self._pixel && self._rec && self._sharedBuffer) {
+         const blob = new Uint16Array(self._sharedBuffer);
+         return new Float16PixelArray(self._pixel, self._rec, blob);
+      }
+      throw("Float16PixelArray copyShared: bad input");
+   }
+
+   static create(structSize, numberOfChannel, allocationSize) {
       let format = PixelFormatK.RG;
       let internalFormat = PixelInternalFormatK.RG16F;
       switch (numberOfChannel) {
@@ -401,11 +458,10 @@ class Float16PixelArray extends PixelArray {
       }      
       
       // now allocated data
-      super(structSize, 2, numberOfChannel, internalFormat, format);
-      if (!allocationSize) {
-         allocationSize = MAX_TEXTURE_SIZE;
-      }
-      this._blob = this._allocateBuffer(allocationSize);
+      const [pixel, record] = PixelArray._createInternal(structSize, 2, numberOfChannel, internalFormat, format);
+      const ret = new Float16PixelArray(pixel, record, null);
+      ret.expand(allocationSize);
+      return ret;
    }
    
    _allocateBuffer(size) {
@@ -435,12 +491,26 @@ class Float16PixelArray extends PixelArray {
 
 
 class TexCoordPixelArray3D {
-   constructor(uvChannel, allocationSize) {
-      this._uvs = [];
+   constructor(uvs) {
+      this._uvs = uvs;
+   }
+
+   static copyShared(rawUvs) {
+      const uvs = [];
+      for (let uv of rawUvs) {
+         const blob = new Uint16Array(uv._sharedBuffer);
+         uvs.push( Float16PixelArray.copyShared(uv._pixel, uv._rec, blob) );
+      }
+      return new TexCoordPixelArray3D(uvs);
+   }
+
+   static create(uvChannel, allocationSize) {
+      const uvs = [];
       for (let i = 0; i < uvChannel; ++i) {
-          this._uvs.push( new Float16PixelArray(2, 2, allocationSize) );   // structSize 2
+          uvs.push( Float16PixelArray.create(2, 2, allocationSize) );   // structSize 2
           //this._uvs.push( new Float32PixelArray(2, 2, allocationSize) );   // structSize 2
       }
+      return new TexCoordPixelArray3D(uvs);
    }
    
    createDataTexture(gl) {

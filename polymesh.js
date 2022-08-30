@@ -59,12 +59,39 @@ Object.freeze(WingedEdgeK);
 
 
 class HalfEdgeArray extends HalfEdgeAttributeArray {
-   constructor(size) {
-      super(size);
-      this._hEdges = new Int32PixelArray(HalfEdgeK.sizeOf, 4, size*2);       // structSize, numberOfChannel
-      this._wEdges = new Float32PixelArray(WingedEdgeK.sizeOf, 1, size);
-      this._wFree = {head: 0, size: 0}                 
+   constructor(hEdges, wEdges, wFree, internal) {
+      super(...internal);
+      this._hEdges = hEdges;
+      this._wEdges = wEdges;
+      this._wFree = wFree;
    }
+
+   static copyShared(self) {
+      if (self._hEdges && self._wEdges) {
+         let params = HalfEdgeAttributeArray._copySharedInternal(self);
+         const hEdges = Int32PixelArray.copyShared(self._hEdges);
+         const wEdges = Float32PixelArray.copyShared(self._wEdges);
+         const wFree = {head: 0, size: 0};
+         return new HalfEdgeArray(hEdges, wEdges, wFree, params);
+      }
+      throw("HalfEdgeArray copyShared: bad input");
+   }
+
+   static create(size) {
+      const params = HalfEdgeAttributeArray._createInternal(size);
+      const hEdges = Int32PixelArray.create(HalfEdgeK.sizeOf, 4, size*2);       // structSize, numberOfChannel
+      const wEdges = Float32PixelArray.create(WingedEdgeK.sizeOf, 1, size);
+      const wFree = {head: 0, size: 0};
+      return new HalfEdgeArray(hEdges, wEdges, wFree, params);
+   }
+
+   getShared(obj) {
+      super.getShared(obj);
+      obj._hEdges = this._hEdges.getShared({});
+      obj._wEdges = this._wEdges.getShared({});
+      return obj;
+   }
+
    
    *[Symbol.iterator] () {
       const length = this._wEdges.length();
@@ -248,10 +275,33 @@ Object.freeze(PolygonK);
 
 
 class PolygonArray extends FaceArray {
-   constructor(materialDepot, hEdges, size) {
-      super(materialDepot, size);
-      this._faces = new Int32PixelArray(PolygonK.sizeOf, 4, size);
+   constructor(hEdges, faces, internal) {
+      super(...internal);
+      this._faces = faces;
       this._hEdges = hEdges;
+   }
+
+   static copyShared(self, hEdges) {
+      if (self._faces) {
+         const params = FaceArray._copySharedInternal(self);
+         const faces = Int32PixelArray.copyShared(self._faces);
+         return new PolygonArray(hEdges, faces, params);
+      }
+      throw("copyShared: bad input");
+   }
+
+   static create(materialDepot, hEdges, size) {
+      const params = FaceArray._createInternal(materialDepot, size);
+      const faces = Int32PixelArray.create(PolygonK.sizeOf, 4, size);
+
+      return new PolygonArray(hEdges, faces, params);
+   }
+
+   getShared(obj) {
+      super.getShared(obj);
+      obj._faces = this._faces.getShared({});
+
+      return obj;
    }
 
    // Iterator for the HalfEdge connecting the Polygon.
@@ -294,7 +344,7 @@ class PolygonArray extends FaceArray {
                triangles.push( triangles[v0], triangles[v0+1], triangles[v0+2],
                                triangles[v1], triangles[v1+1], triangles[v1+2] );
             }
-            triangles.push( hEdge, vertices.pt(this._hEdges.origin(hEdge)), material );
+            triangles.push( hEdge, this._hEdges.origin(hEdge), material );
          }
       }
       
@@ -362,11 +412,25 @@ class PolygonArray extends FaceArray {
 
 
 class PolyHoleArray extends HoleArray {
-   constructor(mesh) {
-      super(mesh);
+   constructor(hEdges, internal) {
+      super(hEdges, ...internal);
       // zeroth, is freeList count, 1st element is freeList head, // real hole start from 2nd element.
       // this._holes.set(1, 0, 0); // 
    }
+
+   static copyShared(self, hEdges) {
+      const params = HoleArray._copySharedInternal(self);
+
+      return new PolyHoleArray(hEdges, params);
+   }
+
+   static create(hEdges) {
+      const params = HoleArray._createInternal();
+
+      return new PolyHoleArray(hEdges, params);
+   }
+
+   // getShared()
 
    /**
     * halfEdge is positive Int 
@@ -401,14 +465,43 @@ class PolyHoleArray extends HoleArray {
 
 // Geometry using Halfedge(of WingedEdge) 
 class PolyMesh extends BaseMesh {
-   constructor(materialDepot) {     
-      super(materialDepot);
+   constructor(hEdges, vertices, faces, holes, internal) {
+      super(...internal);
     
-      this._hEdges = new HalfEdgeArray();
-      this._vertices = new VertexArray(this._hEdges);
-      this._faces = new PolygonArray(this._material.proxy, this._hEdges);
-      this._holes = new PolyHoleArray(this);
+      this._hEdges = hEdges;
+      this._vertices = vertices;
+      this._faces = faces;
+      this._holes = holes;
    };
+
+   static copyShared(self) {
+      if (self._hEdges && self._vertices && self._faces && self._holes) {
+         const params = BaseMesh._copySharedInternal(self);
+         return new PolyMesh(self._hEdges, self._vertices, self._faces, self._holes, params);
+      }
+      throw("PolyMesh copyShared(): bad input");
+   }
+
+   static create(materialDepot) {
+      const params = BaseMesh._createInternal(materialDepot);
+
+      const hEdges = HalfEdgeArray.create();
+      const vertices = VertexArray.create(hEdges);
+      const faces = PolygonArray.create(params[1].proxy, hEdges);
+      const holes = PolyHoleArray.create(hEdges);
+
+      return new PolyMesh(hEdges, vertices, faces, holes, params);
+   }
+
+   getShared(obj) {
+      super.getShared(obj);
+      obj._hEdges = this._hEdges.getShared({});
+      obj._vertices = this._vertices.getShared({});
+      obj._faces = this._faces.getShared({});
+      obj._holes = this._holes.getShared({});
+      return obj;
+   }
+
 
    doneEdit() {
       // walk through all wEdges, assign hole to each hEdge group. 

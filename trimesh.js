@@ -44,18 +44,55 @@ Object.freeze(wEdgeSK);
 
 // directEdge is 1 triangle as unit, 3 directEdge.
 class DirectedEdgeArray extends HalfEdgeAttributeArray {
-   constructor(size) {
-      super(size);
-      this._dEdges = new Int32PixelArray(dEdgeK.sizeOf, 3, size*3);
-      this._fEdges = new Int32PixelArray(fEdgeK.sizeOf, 3, size);
-      this._fEdges.alloc();   // alloc zeroth for management of free list
+   constructor(dEdges, fEdges, wEdges, freeBoundaryCount, wFreeList, internal) {
+      super(...internal);
+      this._dEdges = dEdges;
+      this._fEdges = fEdges;
       // TODO: wEdge, freeList 
-      this._wEdges = {
-         left: new Int32PixelArray(1, 1, size),
-         sharpness: new Float32PixelArray(1, 1, size),
+      this._wEdges = wEdges;
+      this._wFreeList = wFreeList;
+      this._freeBoundaryCount = freeBoundaryCount;
+   }
+
+   static copyShared(self) {
+      if (self._dEdges && self._fEdges && self._wEdges && self._wEdges.left && self_wEdges.sharpness && self._freeBoundaryCount) {
+         const params = HalfEdgeAttributeArray._copySharedInternal(self);
+         const dEdges = Int32PixelArray.copyShared(self._dEdges);
+         const fEdges = Int32PixelArray.copyShared(self._fEdges);
+         const wEdges = {
+            left: Int32PixelArray.copyShared(self._wEdges.left),
+            sharpness: Float32PixelArray.copyShared(self._wEdges.sharpness),
+         };
+         return new DirecedEdgeArray(dEdges, fEdges, wEdges, -1, self._freeBoundaryCount, params);
+      }
+      throw("DirectedEdgeArray copyShared(): bad input");
+   }
+
+   static create(size) {
+      const params = HalfEdgeAttributeArray._createInternal(size);
+
+      const dEdges = Int32PixelArray.create(dEdgeK.sizeOf, 3, size*3);
+      const fEdges = Int32PixelArray.create(fEdgeK.sizeOf, 3, size);
+      fEdges.alloc();   // alloc zeroth for management of free list
+      // TODO: wEdge, freeList
+      const wEdges = {
+         left: Int32PixelArray.create(1, 1, size),
+         sharpness: Float32PixelArray.create(1, 1, size),
       };
-      this._wFreeList = -1;
-      this._freeBoundaryCount=0;
+      const wFreeList = -1;
+      const freeBoundaryCount=0;
+      return new DirectedEdgeArray(dEdges, fEdges, wEdges, freeBoundaryCount, wFreeList, params);
+   }
+
+   getShared(obj) {
+      obj._dEdges = this._dEdges.getShared({});
+      obj._fEdges = this._fEdges.getShared({});
+      obj._wEdges = {};
+      obj._wEdges.left = this._wEdges.left.getShared({});
+      obj._wEdges.sharpness = this._wEdges.sharpness.getShared({});
+      obj._freeBoundaryCount = this._freeBoundaryCount;
+
+      return obj;
    }
     
    *[Symbol.iterator] () {
@@ -358,11 +395,33 @@ Object.freeze(TriangleK);
 
 
 class TriangleArray extends FaceArray {
-   constructor(materialDepot, dEdges, size) {
-      super(materialDepot, size);
-      this._faces = new Int32PixelArray(TriangleK.sizeOf, 4, size);
+   constructor(dEdges, faces, internal) {
+      super(...internal);
+      this._faces = faces;
       this._dEdges = dEdges;
    }
+
+   static copyShared(self, dEdges) {
+      if (self._faces) {
+         const internal = FaceArray._copySharedInternal(self);
+         const faces = Int32PixelArray.copyShared(self._faces);
+         return new Triangle(dEdges, faces, internal);
+      }
+      throw("TriangleArray copyShared(): bad input");
+   }
+
+   static create(materialDepot, dEdges, size) {
+      const internal = FaceArray._createInternal(materialDepot, size);
+      const faces = Int32PixelArray.create(TriangleK.sizeOf, 4, size);
+      return new TriangleArray(dEdges, faces, internal);
+   }
+
+   getShared(obj) {
+      super.getShared(obj);
+      obj._faces = this._faces.getShared({});
+      return obj;
+   }
+
    
    // Iterator for the HalfEdge connecting to the triangle.
    * halfEdgeIter(face) {
@@ -395,11 +454,11 @@ class TriangleArray extends FaceArray {
       for (let polygon = 0; polygon < length; ++polygon) {
          let material = this.material(polygon);
  
-         triangles.push( current, vertices.pt(this._dEdges.origin(current)), material );
+         triangles.push( current, this._dEdges.origin(current), material );
          current++;
-         triangles.push( current, vertices.pt(this._dEdges.origin(current)), material );
+         triangles.push( current, this._dEdges.origin(current), material );
          current++;
-         triangles.push( current, vertices.pt(this._dEdges.origin(current)), material );
+         triangles.push( current, this._dEdges.origin(current), material );
          current++;
       }
       
@@ -468,9 +527,24 @@ class TriangleArray extends FaceArray {
 }
 
 class TriHoleArray extends HoleArray {
-   constructor(mesh) {
-      super(mesh);
+   constructor(dEdges, internal) {
+      super(dEdges, ...internal);
    }
+
+   static copyShared(self, dEdges) {
+      const params = HoleArray._copySharedInternal(self);
+      return new TriHoleArray(dEdges, params);
+   }
+
+   static create(dEdges) {
+      const params = HoleArray._createInternal();
+      return new TriHoleArray(dEdges, params);
+   }
+
+   /*getShared(obj) {
+      super.getShared(obj);
+      return obj;
+   }*/
    
    /**
     * halfEdge is negative Int, so freeList using positive Int
@@ -487,7 +561,6 @@ class TriHoleArray extends HoleArray {
     * freeList is using positive Int because HalfEdge is negative Int.
     * @return {negative Int} hole.
     */
-   _a
    _allocFromFree() {
       let head = this._holes.get(1, 0);
       const newHead = this._holes.get(head, 0);
@@ -517,13 +590,47 @@ function isSame(as, bs) {
 
 
 class TriMesh extends BaseMesh {
-   constructor(materialDepot) {
-      super(materialDepot);
+   constructor(dEdges, vertices, faces, holes, internal) {
+      super(...internal);
       
-      this._hEdges = new DirectedEdgeArray();
-      this._vertices = new VertexArray(this._hEdges);
-      this._faces = new TriangleArray(this._material.proxy, this._hEdges);
-      this._holes = new TriHoleArray(this);
+      this._hEdges = dEdges;
+      this._vertices = vertices;
+      this._faces = faces;
+      this._holes = holes;
+   }
+
+   static copyShared(self) {
+      if (self._hEdges && self._vertices && self._faces && self._holes) {
+         const params = BaseMesh._copySharedInternal();
+         const dEdges = DirectedEdgeArray.copyShared(self._hEdges);
+         const vertices = VertexArray.copyShared(self._vertices);
+         const faces = TriangleArray.copyShared(self._faces);
+         const holes = TriHoleArray.copyShared(self._holes);
+
+         return new TriMesh(dEdges, vertices, faces, holes, params);
+      }
+      throw("TriMesh copyShared(): bad input");
+   }
+
+   static create(materialDepot) {
+      const params = BaseMesh._createInternal(materialDepot);
+
+      const dEdges = DirectedEdgeArray.create();
+      const vertices = VertexArray.create(dEdges);
+      const faces = TriangleArray.create(params[1].proxy, dEdges);
+      const holes = TriHoleArray.create(dEdges);
+
+      return new TriMesh(dEdges, vertices, faces, holes, params);
+   }
+
+   getShared(obj) {
+      super.getShared(obj);
+      obj._hEdges = this._hEdges.getShared({});
+      obj._vertices = this._vertices.getShared({});
+      obj._faces = this._faces.getShared({});
+      obj._holes = this._holes.getShared({});
+
+      return obj;
    }
 
    doneEdit() {

@@ -422,7 +422,7 @@ const subdivideCC = (()=>{
     * @returns {PolyMesh} the Catmull-Clark subdivided Polymesh
    */
    return function(source) {
-      const subd = new PolyMesh(source._material.depot);
+      const subd = PolyMesh.create(source._material.depot);
       
       // preallocated enough points to next subdivision level, 
       subd.v._allocEx(source.v.lengthPt() + source.f.length() + source.h.lengthW());
@@ -539,7 +539,7 @@ const subdivideTriPoly = (source, refineEdge, refineVertex)=>{
       return hEdge * 4 + (HalfEdgeK.isOdd(hEdge)? 1 : 0);
    }
    
-   const subd = new PolyMesh(source._material.depot);
+   const subd = PolyMesh.create(source._material.depot);
    subd.v._valenceMax = source.v.valenceMax();
    
    // preallocated enough points to next subdivision level, 
@@ -700,7 +700,7 @@ const subdivideTri = (source, refineEdge, refineVertex)=>{
       return (face*3*4) + (index*3);
    }
    
-   const subd = new TriMesh(source._material.depot);
+   const subd = TriMesh.create(source._material.depot);
    subd.v._valenceMax = source.v.valenceMax();
    
    // preallocated enough points to next subdivision level, 

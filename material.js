@@ -120,7 +120,7 @@ function blinnPhongToPBR(material) {
 class MaterialDepot {
    constructor(gl) {
       glUtil.setConstant(gl);
-      this._gpu = new Float32PixelArray(PBRK.sizeof, 4);
+      this._gpu = Float32PixelArray.create(PBRK.sizeof, 4);
       this._warehouse = [];
       this._textureDepot = new TextureDepot();
       // create initial white texture, 

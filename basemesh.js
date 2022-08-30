@@ -18,9 +18,36 @@ Object.freeze(HalfEdgeAttrK);
 
 
 class HalfEdgeAttributeArray {
-   constructor(size) {
-      this._attrs = new Float16PixelArray(HalfEdgeAttrK.sizeOf, 3, size*2);
-      this._uvs = new TexCoordPixelArray3D(1, size);
+   constructor(attrs, uvs) {
+      this._attrs = attrs;
+      this._uvs = uvs;
+   }
+
+   static _copySharedInternal(self) {
+      let attrs;
+      if (self._attrs) {
+         attrs = Float16PixelArray.copyShared(self._attrs);
+         let uvs;
+         if (self._uvs) {
+            uvs = TexCoordPixelArray3D.copyShared(self._uvs);
+            return [attrs, uvs];
+         }
+      }
+      // throw error
+      return [null, null];
+   }
+
+   static _createInternal(size) {
+      const attrs = Float16PixelArray.create(HalfEdgeAttrK.sizeOf, 3, size*2);
+      const uvs = TexCoordPixelArray3D.create(1, size);
+      return [attrs, uvs];
+   }
+
+   getShared(obj) {
+      // return json that can be used by copyShared to reconstruct Object after passing through webworker
+      obj._attrs = this._attrs.getShared({});
+      obj._uvs = this._uvs.getShared({});
+      return obj;
    }
 
    _allocEx(size) {
@@ -186,16 +213,44 @@ Object.freeze(VertexAttrK);
 
 
 class VertexArray {
-   constructor(hEdges, size) {
-      this._vertices = {
-         hEdge: new Int32PixelArray(VertexK.sizeOf, 1, size),
-         pt: new Int32PixelArray(1, 1, size),
-         attr: new Float32PixelArray(VertexAttrK.sizeOf, 2, size),
-      };
-      this._pts = new Float32PixelArray(PointK.sizeOf, 3, size);
+   constructor(vertices, pts, hEdges, valenceMax) {
+      this._vertices = vertices;
+      this._pts = pts;
       this._hEdges = hEdges;
-      this._valenceMax = 0;
+      this._valenceMax = valenceMax;
    }
+
+   static copyShared(self, hEdges) {
+      if (self._vertices && self._pts && self._valenceMax) {
+         if (self._vertices.hEdge && self._vertices.attr) {
+            return new VertexArray(self.vertices, pts, hEdges, self._valenceMax);
+         }
+      }
+      throw("VertexArray copyShared: bad input");
+   }
+
+   static create(hEdges, size) {
+      const vertices = {
+         hEdge: Int32PixelArray.create(VertexK.sizeOf, 1, size),
+         attr: Float32PixelArray.create(VertexAttrK.sizeOf, 2, size),
+      };
+      const pts = Float32PixelArray.create(PointK.sizeOf, 3, size);
+
+      return new VertexArray(vertices, pts, hEdges, 0);
+   }
+
+   getShared(obj) {
+      obj._vertices = {};
+      obj._vertices.hEdge = this._vertices.hEdge.getShared({});
+      obj._vertices.attr = this._vertices.attr.getShared({});
+
+      obj._pts = this._pts.getShared({});
+      obj._valenceMax = this._valenceMax;
+
+      // this._hEdges should be assigned in copyShared.
+      return obj;
+   }
+
    
    *[Symbol.iterator] () {
       const length = this._vertices.hEdge.length();
@@ -316,24 +371,16 @@ class VertexArray {
 
    alloc() {
       this._vertices.attr.alloc();
-      this._vertices.pt.alloc();
       const vertex = this._vertices.hEdge.alloc();
       this._pts.alloc();
-      this._vertices.pt.set(vertex, 0, vertex);
       return vertex;
    }
    
    _allocEx(size) {
       const start = this.length();
       this._vertices.attr.allocEx(size);
-      this._vertices.pt.allocEx(size);
       this._vertices.hEdge.allocEx(size);
       this._pts.allocEx(size);
-      const end = start + size;
-      // copy location, TODO: comeback for non-maniford case
-      for (let i = start; i < end; ++i) {
-         this._vertices.pt.set(i, 0, i);
-      }
    }
 
    isFree(vert) {
@@ -341,12 +388,7 @@ class VertexArray {
    }
 
    copyPt(vertex, inPt, inOffset) {
-      const pt = this._vertices.pt.get(vertex, 0);
-      vec3.copy(this._pts.getBuffer(), pt * PointK.sizeOf, inPt, inOffset);
-   }
-   
-   pt(vert) {
-      return this._vertices.pt.get(vert, 0);
+      vec3.copy(this._pts.getBuffer(), vertex * PointK.sizeOf, inPt, inOffset);
    }
    
    halfEdge(vert) {
@@ -463,9 +505,25 @@ class VertexArray {
 
 
 class FaceArray {
-   constructor(materialDepot, size) {
-      this._normals = new Float32PixelArray(3, 3, size);
+   constructor(materialDepot, normals) {
+      this._normals = normals;
       this._depot = materialDepot;
+   }
+
+   static _copySharedInternal(self) {
+      if (self._normals) {
+         return [Float32PixelArray.copyShared(self._normals)];
+      }
+      //throw("FaceArray _copySharedInternal: bad input");
+   }
+
+   static _createInternal(depot, size) {
+      return [depot, Float32PixelArray.create(3, 3, size)];
+   }
+
+   getShared(obj) {
+      obj._normals = this._normals.getShared({});
+      return obj;
    }
    
    *[Symbol.iterator] () {
@@ -512,12 +570,29 @@ class FaceArray {
  * hole has to start from -2, because -1 is for unassigned hole.
  */
 class HoleArray {
-   constructor(mesh) {
-      this._mesh = mesh;
-      this._holes = new Int32PixelArray(1,1);
+   constructor(hEdges, holes) {
+      this._hEdges = hEdges;
+      this._holes = holes;
+   }
+
+   static _copySharedInternal(self) {
+      if (self._holes) {
+         return Int32PixelArray.copyShared(self._holes);
+      }
+      throw("HoleArray _copySharedInternal: bad input");
+   }
+
+   static _createInternal() {
+      const holes = Int32PixelArray.create(1, 1);
       // zeroth is freeCount, 1st element is free head list, real hole start from 2nd element.
       // this._holes.set(1, 0, -1);
-      this._holes.allocEx(2);  // preallocated [size, freeHead] if any
+      holes.allocEx(2);  // preallocated [size, freeHead] if any
+      return [holes];
+   }
+
+   getShared(obj) {
+      obj._holes = this._holes.getShared({});
+      return obj;
    }
 
    /**
@@ -544,7 +619,7 @@ class HoleArray {
    }
 
    * halfEdgeIter(hole) {
-      const hEdges = this._mesh.h;
+      const hEdges = this._hEdges;
       const start = this.halfEdge(hole);
       let current = start;
       do {
@@ -590,7 +665,7 @@ class HoleArray {
    }
 
    sanityCheck() {
-      const hEdges = this._mesh.h;
+      const hEdges = this._hEdges;
       let sanity = true;
       for (let hole of this) {
          for (let hEdge of this.halfEdgeIter(hole)) {
@@ -629,14 +704,23 @@ class NameGroup {
 
 /** abstract class representing Mesh. managing material and groupNode */
 class BaseMesh {
-   constructor(materialDepot) {
-      this._nonManifold = false;
-      this._bin = {nameGroup:[], };
-      
-      this._material = {depot: materialDepot};
+   constructor(bin, material) {
+      this._bin = bin;
+      this._material = material;
+   }
+
+   static _copySharedInternal(self) {
+      // nothing, we are only interested in geometry data.
+      return [null, null];
+   }
+
+   static _createInternal(materialDepot) {
+      const bin = {nameGroup:[], };
+
+      const material = {depot: materialDepot};
       const warehouse = new Map
-      this._material.used = warehouse;
-      this._material.proxy = {                    // TODO: use real proxy?
+      material.used = warehouse;
+      material.proxy = {                    // TODO: use real proxy?
          addRef: (material)=> {
             materialDepot.addRef(material);
             let count = warehouse.get(material);
@@ -646,7 +730,7 @@ class BaseMesh {
                warehouse.set(material, count+1);
             }
          },
-       
+
          releaseRef: (material)=> {
             materialDepot.releaseRef(material);
             let count = warehouse.get(material);
@@ -657,14 +741,20 @@ class BaseMesh {
                warehouse.delete(material);
             }
          },
-       
+
          getDefault: ()=> {
             return materialDepot.getDefault();
          },
-      };      
+      };
+
+      return [bin, material];
    }
-   
-      
+
+   getShared(obj) {
+      // get nothing because subdivide don't use it.
+      return obj;
+   }
+
    makePullBuffer(gl) {
       this.h.computeNormal(this._vertices);
       

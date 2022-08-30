@@ -48,9 +48,9 @@ class Importer {
       this.flushGroup();
       if (!this._currentMesh || !this._currentMesh.isEmpty()) {
          if (this._triangleOnly) {
-            this._currentMesh = new TriMesh(this._depot);
+            this._currentMesh = TriMesh.create(this._depot);
          } else {
-            this._currentMesh = new PolyMesh(this._depot);
+            this._currentMesh = PolyMesh.create(this._depot);
          }
 
          this._objs.push( this._currentMesh );
