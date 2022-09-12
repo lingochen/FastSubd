@@ -421,7 +421,7 @@ const subdivideCC = (()=>{
     * @param {PolyMesh} source - original PolyMesh to be subdivide 
     * @returns {PolyMesh} the Catmull-Clark subdivided Polymesh
    */
-   return function(source) {
+   function ccSubdivide(source) {
       const subd = PolyMesh.create(source._material.depot);
       
       // preallocated enough points to next subdivision level, 
@@ -440,6 +440,32 @@ const subdivideCC = (()=>{
       subdivideHole(subd, source);
       
       return subd;
+   }
+
+   return async function(source, level) {
+      let subd = source;
+
+      let text = "";
+      //let multi = 1;
+      for (let i = 0; i < level; ++i) {
+         let start = Date.now();
+
+         subd = ccSubdivide(subd);
+         // readjust _material
+         //multi *= 4;           // only for level 1 and later
+         //
+         text += "(level: " + (i+1) + ", time: " + (Date.now()-start) + ")\n";
+         if (1) {
+            const sanity = subd.sanityCheck();
+            console.log("mesh integrity: " + sanity);
+            console.log(subd.stat());
+         }
+      }
+      // readjust _material
+      //for (let [mat, count] of source.m) {
+      //   subd.m.addRef(mat, count*multi);
+      //}
+      return [subd, text];
    }
 })();
 
@@ -764,7 +790,7 @@ function computeButterflyCoefficient(valence) {
 /**
  Modified Butterfly subdivision scheme, according 
 */
-const subdivideMB = (()=> {
+const mbSubdivide = (()=> {
    // for the normal wEdge 6-valence.
    const wK = -1/16;          // wK is arbitray small value, can be 0.
    const aK = 1/2 - wK;
@@ -890,7 +916,7 @@ const subdivideMB = (()=> {
 })();
 
 
-const subdivideLoop = (()=>{
+const loopSubdivide = (()=>{
 
    /**
     * @param {*} subd 
@@ -1056,6 +1082,41 @@ const subdivideLoop = (()=>{
          }
       }
 })();
+
+
+function triSubdivide(subdivideFn, source, level) {
+   let subd = source;
+
+   let text = "";
+   //let multi = 1;
+   for (let i = 0; i < level; ++i) {
+      let start = Date.now();
+
+      subd = subdivideFn(subd);
+      // readjust _material
+      //multi *= 4;
+      //
+      text += "(level: " + (i+1) + ", time: " + (Date.now()-start) + ")\n";
+      if (1) {
+         const sanity = subd.sanityCheck();
+         console.log("mesh integrity: " + sanity);
+         console.log(subd.stat());
+      }
+   }
+   // readjust _material
+   //for (let [mat, count] of source.m) {
+   //   subd.m.addRef(mat, count*multi);
+   //}
+   return [subd, text];
+}
+
+async function subdivideMB(source, level) {
+   return triSubdivide(mbSubdivide, source, level);
+}
+
+async function subdivideLoop(source, level) {
+   return triSubdivide(loopSubdivide, source, level);
+}
 
 
 export {

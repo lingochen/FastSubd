@@ -502,7 +502,7 @@ class TextureDepot {
    create(gl, name, sampler) {
       const handle = gl.createTexture();
       const texture = new Texture(gl, name, sampler);
-      texture.setImage(gl, handle, glUtil.CHECKERBOARD);    // default checkerboard. we need default because loading texture might failed or loading later than first rendering.
+      texture.setImage(gl, handle, glUtil.getCHECKERBOARD());    // default checkerboard. we need default because loading texture might failed or loading later than first rendering.
       this._warehouse.set(handle, texture);
       
       return handle;

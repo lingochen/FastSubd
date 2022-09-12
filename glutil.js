@@ -229,17 +229,22 @@ function setWHITE(gl, whiteHandle) {
 }
 
 
-const CHECKERBOARD = (function() {
-   const c = document.createElement('canvas').getContext('2d');
-   c.canvas.width = c.canvas.height = 128;
-   for (var y = 0; y < c.canvas.height; y += 16) {
-     for (var x = 0; x < c.canvas.width; x += 16) {
-       c.fillStyle = (x ^ y) & 16 ? '#FFF' : '#DDD';
-       c.fillRect(x, y, 16, 16);
-     }
+let CHECKERBOARD;
+function getCHECKERBOARD() {
+   if (!CHECKERBOARD) {
+      const c = document.createElement('canvas').getContext('2d');
+      c.canvas.width = c.canvas.height = 128;
+      for (var y = 0; y < c.canvas.height; y += 16) {
+         for (var x = 0; x < c.canvas.width; x += 16) {
+            c.fillStyle = (x ^ y) & 16 ? '#FFF' : '#DDD';
+            c.fillRect(x, y, 16, 16);
+         }
+      }
+      CHECKERBOARD = c.canvas;
    }
-   return c.canvas;
-})();
+   
+   return CHECKERBOARD;
+};
 
 
 
@@ -261,7 +266,7 @@ function resizeCanvasToDisplaySize(canvas, multiplier) {
 export {
    makeDataTexture,
    makeDataTexture3D,
-   CHECKERBOARD,
+   getCHECKERBOARD,
    defaultSampler,
    setImage,
    setWHITE,

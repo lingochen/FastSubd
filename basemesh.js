@@ -23,18 +23,18 @@ class HalfEdgeAttributeArray {
       this._uvs = uvs;
    }
 
-   static _copySharedInternal(self) {
+   static _rehydrateInternal(self) {
       let attrs;
       if (self._attrs) {
-         attrs = Float16PixelArray.copyShared(self._attrs);
+         attrs = Float16PixelArray.rehydrate(self._attrs);
          let uvs;
          if (self._uvs) {
-            uvs = TexCoordPixelArray3D.copyShared(self._uvs);
+            uvs = TexCoordPixelArray3D.rehydrate(self._uvs);
             return [attrs, uvs];
          }
       }
       // throw error
-      return [null, null];
+      throw("no HalfEdgeAttributeArray internal");
    }
 
    static _createInternal(size) {
@@ -43,10 +43,10 @@ class HalfEdgeAttributeArray {
       return [attrs, uvs];
    }
 
-   getShared(obj) {
-      // return json that can be used by copyShared to reconstruct Object after passing through webworker
-      obj._attrs = this._attrs.getShared({});
-      obj._uvs = this._uvs.getShared({});
+   getDehydrate(obj) {
+      // return json that can be used by rehydrate to reconstruct Object after passing through webworker
+      obj._attrs = this._attrs.getDehydrate({});
+      obj._uvs = this._uvs.getDehydrate({});
       return obj;
    }
 
@@ -220,13 +220,18 @@ class VertexArray {
       this._valenceMax = valenceMax;
    }
 
-   static copyShared(self, hEdges) {
-      if (self._vertices && self._pts && self._valenceMax) {
+   static rehydrate(self, hEdges) {
+      if (self._vertices && self._pts) {// && self._valenceMax) {
          if (self._vertices.hEdge && self._vertices.attr) {
-            return new VertexArray(self.vertices, pts, hEdges, self._valenceMax);
+            const vertices = {
+               hEdge: Int32PixelArray.rehydrate(self._vertices.hEdge),
+               attr: Float32PixelArray.rehydrate(self._vertices.attr),
+            };
+            const pts = Float32PixelArray.rehydrate(self._pts);
+            return new VertexArray(vertices, pts, hEdges, self._valenceMax);
          }
       }
-      throw("VertexArray copyShared: bad input");
+      throw("VertexArray rehydrate: bad input");
    }
 
    static create(hEdges, size) {
@@ -239,22 +244,26 @@ class VertexArray {
       return new VertexArray(vertices, pts, hEdges, 0);
    }
 
-   getShared(obj) {
+   getDehydrate(obj) {
       obj._vertices = {};
-      obj._vertices.hEdge = this._vertices.hEdge.getShared({});
-      obj._vertices.attr = this._vertices.attr.getShared({});
+      obj._vertices.hEdge = this._vertices.hEdge.getDehydrate({});
+      obj._vertices.attr = this._vertices.attr.getDehydrate({});
 
-      obj._pts = this._pts.getShared({});
+      obj._pts = this._pts.getDehydrate({});
       obj._valenceMax = this._valenceMax;
 
-      // this._hEdges should be assigned in copyShared.
+      // this._hEdges should be assigned in rehydrate.
       return obj;
    }
 
    
    *[Symbol.iterator] () {
-      const length = this._vertices.hEdge.length();
-      for (let i = 0; i < length; ++i) {
+      yield* this.rangeIter(0, this._vertices.hEdge.length());
+   }
+
+   * rangeIter(start, stop) {
+      stop = Math.min(this._vertices.hEdge.length(), stop);
+      for (let i = start; i < stop; ++i) {
          if (!this.isFree(i)) {
             yield i;
          }
@@ -510,24 +519,32 @@ class FaceArray {
       this._depot = materialDepot;
    }
 
-   static _copySharedInternal(self) {
+   static _rehydrateInternal(self) {
       if (self._normals) {
-         return [Float32PixelArray.copyShared(self._normals)];
+         return [Float32PixelArray.rehydrate(self._normals)];
       }
-      //throw("FaceArray _copySharedInternal: bad input");
+      //throw("FaceArray _rehydrateInternal: bad input");
    }
 
    static _createInternal(depot, size) {
       return [depot, Float32PixelArray.create(3, 3, size)];
    }
 
-   getShared(obj) {
-      obj._normals = this._normals.getShared({});
+   getDehydrate(obj) {
+      obj._normals = null;
+      if (this._normals) {
+         obj._normals = this._normals.getDehydrate({});
+      }
       return obj;
    }
    
    *[Symbol.iterator] () {
-      for (let i = 0; i < this.length(); ++i) {
+      yield* this.rangeIter(0, this.length());
+   }
+
+   * rangeIter(start, stop) {
+      stop = Math.min(this.length(), stop);
+      for (let i = start; i < stop; ++i) {
          yield i;
       }
    }
@@ -538,7 +555,7 @@ class FaceArray {
          material = this._depot.getDefault();
       }
       this.setMaterial(handle, material);
-      this._depot.addRef(material);
+      this._depot.addRef(material, 1);
       return handle;
    }
       
@@ -550,8 +567,8 @@ class FaceArray {
       let oldMaterial = this.material(polygon);
       if (oldMaterial !== material) {
          this._setMaterial(polygon, material);
-         this._depot.releaseRef(oldMaterial);
-         this._depot.addRef(material);
+         this._depot.releaseRef(oldMaterial, 1);
+         this._depot.addRef(material, 1);
       }
    }
 
@@ -575,11 +592,11 @@ class HoleArray {
       this._holes = holes;
    }
 
-   static _copySharedInternal(self) {
+   static _rehydrateInternal(self) {
       if (self._holes) {
-         return Int32PixelArray.copyShared(self._holes);
+         return [Int32PixelArray.rehydrate(self._holes)];
       }
-      throw("HoleArray _copySharedInternal: bad input");
+      throw("HoleArray _rehydrateInternal: bad input");
    }
 
    static _createInternal() {
@@ -590,8 +607,8 @@ class HoleArray {
       return [holes];
    }
 
-   getShared(obj) {
-      obj._holes = this._holes.getShared({});
+   getDehydrate(obj) {
+      obj._holes = this._holes.getDehydrate({});
       return obj;
    }
 
@@ -709,7 +726,7 @@ class BaseMesh {
       this._material = material;
    }
 
-   static _copySharedInternal(self) {
+   static _rehydrateInternal(self) {
       // nothing, we are only interested in geometry data.
       return [null, null];
    }
@@ -721,20 +738,23 @@ class BaseMesh {
       const warehouse = new Map
       material.used = warehouse;
       material.proxy = {                    // TODO: use real proxy?
-         addRef: (material)=> {
-            materialDepot.addRef(material);
-            let count = warehouse.get(material);
-            if (count === undefined) {
-               warehouse.set(material, 1);
-            } else {
-               warehouse.set(material, count+1);
-            }
+         *[Symbol.iterator] () {
+            yield* warehouse;
          },
 
-         releaseRef: (material)=> {
-            materialDepot.releaseRef(material);
-            let count = warehouse.get(material);
-            count--;
+         addRef: (material, count)=> {
+            materialDepot.addRef(material, count);
+            let oldCount = warehouse.get(material);
+            if (oldCount === undefined) {
+               oldCount = 0;
+            }
+            warehouse.set(material, oldCount + count);
+         },
+
+         releaseRef: (material, count)=> {
+            materialDepot.releaseRef(material, count);
+            let oldCount = warehouse.get(material);
+            count = oldCount - count;
             if (count) {
                warehouse.set(material, count);
             } else {
@@ -750,7 +770,7 @@ class BaseMesh {
       return [bin, material];
    }
 
-   getShared(obj) {
+   getDehydrate(obj) {
       // get nothing because subdivide don't use it.
       return obj;
    }
@@ -798,6 +818,10 @@ class BaseMesh {
 
    get o() {
       return this._holes;
+   }
+
+   get m() {
+      return this._material.proxy;
    }
    
    addNameGroup(name, start) {

@@ -54,18 +54,18 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
       this._freeBoundaryCount = freeBoundaryCount;
    }
 
-   static copyShared(self) {
-      if (self._dEdges && self._fEdges && self._wEdges && self._wEdges.left && self_wEdges.sharpness && self._freeBoundaryCount) {
-         const params = HalfEdgeAttributeArray._copySharedInternal(self);
-         const dEdges = Int32PixelArray.copyShared(self._dEdges);
-         const fEdges = Int32PixelArray.copyShared(self._fEdges);
+   static rehydrate(self) {
+      if (self._dEdges && self._fEdges && self._wEdges && self._wEdges.left && self._wEdges.sharpness ) {//&& self._freeBoundaryCount) {
+         const params = HalfEdgeAttributeArray._rehydrateInternal(self);
+         const dEdges = Int32PixelArray.rehydrate(self._dEdges);
+         const fEdges = Int32PixelArray.rehydrate(self._fEdges);
          const wEdges = {
-            left: Int32PixelArray.copyShared(self._wEdges.left),
-            sharpness: Float32PixelArray.copyShared(self._wEdges.sharpness),
+            left: Int32PixelArray.rehydrate(self._wEdges.left),
+            sharpness: Float32PixelArray.rehydrate(self._wEdges.sharpness),
          };
-         return new DirecedEdgeArray(dEdges, fEdges, wEdges, -1, self._freeBoundaryCount, params);
+         return new DirectedEdgeArray(dEdges, fEdges, wEdges, -1, self._freeBoundaryCount, params);
       }
-      throw("DirectedEdgeArray copyShared(): bad input");
+      throw("DirectedEdgeArray rehydrate(): bad input");
    }
 
    static create(size) {
@@ -84,20 +84,25 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
       return new DirectedEdgeArray(dEdges, fEdges, wEdges, freeBoundaryCount, wFreeList, params);
    }
 
-   getShared(obj) {
-      obj._dEdges = this._dEdges.getShared({});
-      obj._fEdges = this._fEdges.getShared({});
+   getDehydrate(obj) {
+      super.getDehydrate(obj);
+      obj._dEdges = this._dEdges.getDehydrate({});
+      obj._fEdges = this._fEdges.getDehydrate({});
       obj._wEdges = {};
-      obj._wEdges.left = this._wEdges.left.getShared({});
-      obj._wEdges.sharpness = this._wEdges.sharpness.getShared({});
+      obj._wEdges.left = this._wEdges.left.getDehydrate({});
+      obj._wEdges.sharpness = this._wEdges.sharpness.getDehydrate({});
       obj._freeBoundaryCount = this._freeBoundaryCount;
 
       return obj;
    }
     
    *[Symbol.iterator] () {
-      const length = this._wEdges.left.length();
-      for (let i = 0; i < length; ++i) {
+      yield* this.rangeIter(0, this._wEdges.left.length());
+   }
+
+   * rangeIter(start, stop) {
+      stop = Math.min(this._wEdges.left.length(), stop);
+      for (let i = start; i < stop; ++i) {
          // if (!isFree) {
          const left = this._wEdges.left.get(i, 0);
          yield [i, left, this.pair(left)];
@@ -401,13 +406,13 @@ class TriangleArray extends FaceArray {
       this._dEdges = dEdges;
    }
 
-   static copyShared(self, dEdges) {
+   static rehydrate(self, dEdges) {
       if (self._faces) {
-         const internal = FaceArray._copySharedInternal(self);
-         const faces = Int32PixelArray.copyShared(self._faces);
-         return new Triangle(dEdges, faces, internal);
+         const internal = FaceArray._rehydrateInternal(self);
+         const faces = Int32PixelArray.rehydrate(self._faces);
+         return new TriangleArray(dEdges, faces, internal);
       }
-      throw("TriangleArray copyShared(): bad input");
+      throw("TriangleArray rehydrate(): bad input");
    }
 
    static create(materialDepot, dEdges, size) {
@@ -416,9 +421,9 @@ class TriangleArray extends FaceArray {
       return new TriangleArray(dEdges, faces, internal);
    }
 
-   getShared(obj) {
-      super.getShared(obj);
-      obj._faces = this._faces.getShared({});
+   getDehydrate(obj) {
+      super.getDehydrate(obj);
+      obj._faces = this._faces.getDehydrate({});
       return obj;
    }
 
@@ -531,8 +536,8 @@ class TriHoleArray extends HoleArray {
       super(dEdges, ...internal);
    }
 
-   static copyShared(self, dEdges) {
-      const params = HoleArray._copySharedInternal(self);
+   static rehydrate(self, dEdges) {
+      const params = HoleArray._rehydrateInternal(self);
       return new TriHoleArray(dEdges, params);
    }
 
@@ -541,8 +546,8 @@ class TriHoleArray extends HoleArray {
       return new TriHoleArray(dEdges, params);
    }
 
-   /*getShared(obj) {
-      super.getShared(obj);
+   /*getDehydrate(obj) {
+      super.getDehydrate(obj);
       return obj;
    }*/
    
@@ -599,17 +604,17 @@ class TriMesh extends BaseMesh {
       this._holes = holes;
    }
 
-   static copyShared(self) {
+   static rehydrate(self) {
       if (self._hEdges && self._vertices && self._faces && self._holes) {
-         const params = BaseMesh._copySharedInternal();
-         const dEdges = DirectedEdgeArray.copyShared(self._hEdges);
-         const vertices = VertexArray.copyShared(self._vertices);
-         const faces = TriangleArray.copyShared(self._faces);
-         const holes = TriHoleArray.copyShared(self._holes);
+         const params = BaseMesh._rehydrateInternal();
+         const dEdges = DirectedEdgeArray.rehydrate(self._hEdges);
+         const vertices = VertexArray.rehydrate(self._vertices, dEdges);
+         const faces = TriangleArray.rehydrate(self._faces, dEdges);
+         const holes = TriHoleArray.rehydrate(self._holes, dEdges);
 
          return new TriMesh(dEdges, vertices, faces, holes, params);
       }
-      throw("TriMesh copyShared(): bad input");
+      throw("TriMesh rehydrate(): bad input");
    }
 
    static create(materialDepot) {
@@ -623,12 +628,12 @@ class TriMesh extends BaseMesh {
       return new TriMesh(dEdges, vertices, faces, holes, params);
    }
 
-   getShared(obj) {
-      super.getShared(obj);
-      obj._hEdges = this._hEdges.getShared({});
-      obj._vertices = this._vertices.getShared({});
-      obj._faces = this._faces.getShared({});
-      obj._holes = this._holes.getShared({});
+   getDehydrate(obj) {
+      super.getDehydrate(obj);
+      obj._hEdges = this._hEdges.getDehydrate({});
+      obj._vertices = this._vertices.getDehydrate({});
+      obj._faces = this._faces.getDehydrate({});
+      obj._holes = this._holes.getDehydrate({});
 
       return obj;
    }

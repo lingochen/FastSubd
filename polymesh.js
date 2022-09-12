@@ -66,15 +66,15 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
       this._wFree = wFree;
    }
 
-   static copyShared(self) {
+   static rehydrate(self) {
       if (self._hEdges && self._wEdges) {
-         let params = HalfEdgeAttributeArray._copySharedInternal(self);
-         const hEdges = Int32PixelArray.copyShared(self._hEdges);
-         const wEdges = Float32PixelArray.copyShared(self._wEdges);
+         let params = HalfEdgeAttributeArray._rehydrateInternal(self);
+         const hEdges = Int32PixelArray.rehydrate(self._hEdges);
+         const wEdges = Float32PixelArray.rehydrate(self._wEdges);
          const wFree = {head: 0, size: 0};
          return new HalfEdgeArray(hEdges, wEdges, wFree, params);
       }
-      throw("HalfEdgeArray copyShared: bad input");
+      throw("HalfEdgeArray rehydrate: bad input");
    }
 
    static create(size) {
@@ -85,10 +85,10 @@ class HalfEdgeArray extends HalfEdgeAttributeArray {
       return new HalfEdgeArray(hEdges, wEdges, wFree, params);
    }
 
-   getShared(obj) {
-      super.getShared(obj);
-      obj._hEdges = this._hEdges.getShared({});
-      obj._wEdges = this._wEdges.getShared({});
+   getDehydrate(obj) {
+      super.getDehydrate(obj);
+      obj._hEdges = this._hEdges.getDehydrate({});
+      obj._wEdges = this._wEdges.getDehydrate({});
       return obj;
    }
 
@@ -281,13 +281,13 @@ class PolygonArray extends FaceArray {
       this._hEdges = hEdges;
    }
 
-   static copyShared(self, hEdges) {
+   static rehydrate(self, hEdges) {
       if (self._faces) {
-         const params = FaceArray._copySharedInternal(self);
-         const faces = Int32PixelArray.copyShared(self._faces);
+         const params = FaceArray._rehydrateInternal(self);
+         const faces = Int32PixelArray.rehydrate(self._faces);
          return new PolygonArray(hEdges, faces, params);
       }
-      throw("copyShared: bad input");
+      throw("rehydrate: bad input");
    }
 
    static create(materialDepot, hEdges, size) {
@@ -297,9 +297,9 @@ class PolygonArray extends FaceArray {
       return new PolygonArray(hEdges, faces, params);
    }
 
-   getShared(obj) {
-      super.getShared(obj);
-      obj._faces = this._faces.getShared({});
+   getDehydrate(obj) {
+      super.getDehydrate(obj);
+      obj._faces = this._faces.getDehydrate({});
 
       return obj;
    }
@@ -418,8 +418,8 @@ class PolyHoleArray extends HoleArray {
       // this._holes.set(1, 0, 0); // 
    }
 
-   static copyShared(self, hEdges) {
-      const params = HoleArray._copySharedInternal(self);
+   static rehydrate(self, hEdges) {
+      const params = HoleArray._rehydrateInternal(self);
 
       return new PolyHoleArray(hEdges, params);
    }
@@ -430,7 +430,7 @@ class PolyHoleArray extends HoleArray {
       return new PolyHoleArray(hEdges, params);
    }
 
-   // getShared()
+   // getDehydrate()
 
    /**
     * halfEdge is positive Int 
@@ -474,12 +474,12 @@ class PolyMesh extends BaseMesh {
       this._holes = holes;
    };
 
-   static copyShared(self) {
+   static rehydrate(self) {
       if (self._hEdges && self._vertices && self._faces && self._holes) {
-         const params = BaseMesh._copySharedInternal(self);
+         const params = BaseMesh._rehydrateInternal(self);
          return new PolyMesh(self._hEdges, self._vertices, self._faces, self._holes, params);
       }
-      throw("PolyMesh copyShared(): bad input");
+      throw("PolyMesh rehydrate(): bad input");
    }
 
    static create(materialDepot) {
@@ -493,12 +493,12 @@ class PolyMesh extends BaseMesh {
       return new PolyMesh(hEdges, vertices, faces, holes, params);
    }
 
-   getShared(obj) {
-      super.getShared(obj);
-      obj._hEdges = this._hEdges.getShared({});
-      obj._vertices = this._vertices.getShared({});
-      obj._faces = this._faces.getShared({});
-      obj._holes = this._holes.getShared({});
+   getDehydrate(obj) {
+      super.getDehydrate(obj);
+      obj._hEdges = this._hEdges.getDehydrate({});
+      obj._vertices = this._vertices.getDehydrate({});
+      obj._faces = this._faces.getDehydrate({});
+      obj._holes = this._holes.getDehydrate({});
       return obj;
    }
 

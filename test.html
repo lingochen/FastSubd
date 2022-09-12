@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="./coi-serviceworker.js"></script>
 <style>
   html {
     box-sizing: border-box;
@@ -140,6 +141,7 @@
 </body>
 
 <script type="module">
+   //import {subdivideCC, subdivideMB, subdivideLoop} from './workers/subdivide.js';
    import {subdivideCC, subdivideMB, subdivideLoop} from './subdivide.js';
    import {initMain, readFile, setRenderData} from './runner.js';
    
@@ -202,25 +204,14 @@
     
    let source;         // to be used for subdivision and rendering purpose
    function doSubdivision(level) {
-      //source.v.computeValence(()=>{});
-      let subd = source;
-      let text = "";
-      for (let i = 0; i < level; ++i) {
+      subdivideFunc(source, level).then(([subd, text])=> {
+         // now setRenderData
          let start = Date.now();
-         subd = subdivideFunc(subd);
-         text += "(level: " + (i+1) + ", time: " + (Date.now()-start) + ")\n";
-         if (1) {
-            const sanity = subd.sanityCheck();
-            console.log("mesh integrity: " + sanity);
-            console.log(subd.stat());
-         }
-      }
-      // now setRenderData
-      let start = Date.now();
-      setRenderData(subd);
-      text += "(computeRender: " + (Date.now()-start) + ")\n";
-      log.textContent = subd.stat();
-      counter.textContent = text;
+         setRenderData(subd);
+         text += "(computeRender: " + (Date.now()-start) + ")\n";
+         log.textContent = subd.stat();
+         counter.textContent = text;
+      });
    }
     
 

@@ -88,10 +88,11 @@ class PixelArray {
       return [pixel, record];
    }
 
-   getShared(obj) {
+   getDehydrate(obj) {
       obj._pixel = this._pixel;
       obj._rec = this._rec;
       obj._sharedBuffer = this._blob.buffer;
+      return obj;
    }
 
    /**
@@ -330,12 +331,12 @@ class Int32PixelArray extends PixelArray {
       super(pixel, record, blob);
    }
 
-   static copyShared(self) {
+   static rehydrate(self) {
       if (self._pixel && self._rec && self._sharedBuffer) {
          const blob = new Int32Array(self._sharedBuffer);
          return new Int32PixelArray(self._pixel, self._rec, blob);
       }
-      throw("Int32PixelArray copyShared: bad input");
+      throw("Int32PixelArray rehydrate: bad input");
    }
 
    static create(structSize, numberOfChannel, allocationSize) {
@@ -381,12 +382,12 @@ class Float32PixelArray extends PixelArray {
       super(pixel, record, blob);
    }
 
-   static copyShared(self) {
+   static rehydrate(self) {
       if (self._pixel && self._rec && self._sharedBuffer) {
          const blob = new Float32Array(self._sharedBuffer);
          return new Float32PixelArray(self._pixel, self._rec, blob);
       }
-      throw("Float32PixelArray copyShared: bad Input");
+      throw("Float32PixelArray rehydrate: bad Input");
    }
 
    static create(structSize, numberOfChannel, allocationSize) {
@@ -432,12 +433,12 @@ class Float16PixelArray extends PixelArray {
       super(pixel, record, blob);
    }
 
-   static copyShared(pixel, record, sharedBuffer) {
+   static rehydrate(self) {
       if (self._pixel && self._rec && self._sharedBuffer) {
          const blob = new Uint16Array(self._sharedBuffer);
          return new Float16PixelArray(self._pixel, self._rec, blob);
       }
-      throw("Float16PixelArray copyShared: bad input");
+      throw("Float16PixelArray rehydrate: bad input");
    }
 
    static create(structSize, numberOfChannel, allocationSize) {
@@ -495,13 +496,15 @@ class TexCoordPixelArray3D {
       this._uvs = uvs;
    }
 
-   static copyShared(rawUvs) {
-      const uvs = [];
-      for (let uv of rawUvs) {
-         const blob = new Uint16Array(uv._sharedBuffer);
-         uvs.push( Float16PixelArray.copyShared(uv._pixel, uv._rec, blob) );
+   static rehydrate(self) {
+      if (self._uvs) {
+         const uvs = [];
+         for (let uv of self._uvs) {
+            uvs.push( Float16PixelArray.rehydrate(uv) );
+         }
+         return new TexCoordPixelArray3D(uvs);
       }
-      return new TexCoordPixelArray3D(uvs);
+      throw("TexCoordPixelArray3D rehydrate: bad input");
    }
 
    static create(uvChannel, allocationSize) {
@@ -511,6 +514,14 @@ class TexCoordPixelArray3D {
           //this._uvs.push( new Float32PixelArray(2, 2, allocationSize) );   // structSize 2
       }
       return new TexCoordPixelArray3D(uvs);
+   }
+
+   getDehydrate(obj) {
+      obj._uvs = [];
+      for (let uv of this._uvs) {
+         obj._uvs.push( uv.getDehydrate({}) );
+      }
+      return obj;
    }
    
    createDataTexture(gl) {
