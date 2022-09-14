@@ -258,12 +258,12 @@ class VertexArray {
 
    
    *[Symbol.iterator] () {
-      yield* this.rangeIter(0, this._vertices.hEdge.length());
+      yield* this.rangeIter(0, this._vertices.hEdge.length(), 1);
    }
 
-   * rangeIter(start, stop) {
+   * rangeIter(start, stop, step) {
       stop = Math.min(this._vertices.hEdge.length(), stop);
-      for (let i = start; i < stop; ++i) {
+      for (let i = start; i < stop; i+=step) {
          if (!this.isFree(i)) {
             yield i;
          }
@@ -539,12 +539,12 @@ class FaceArray {
    }
    
    *[Symbol.iterator] () {
-      yield* this.rangeIter(0, this.length());
+      yield* this.rangeIter(0, this.length(), 1);
    }
 
-   * rangeIter(start, stop) {
+   * rangeIter(start, stop, step) {
       stop = Math.min(this.length(), stop);
-      for (let i = start; i < stop; ++i) {
+      for (let i = start; i < stop; i+=step) {
          yield i;
       }
    }

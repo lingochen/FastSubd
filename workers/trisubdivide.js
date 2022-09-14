@@ -51,7 +51,7 @@ const loop = {
     * (E.3) New blended crease edge points – the linear interpolation of
     *    point rules (E.1) and (E.2) with weight σ ∈ (0, 1),
     */
-   refineEdgeRange: function(subd, source, computeSubdivideMid, start, stop) {
+   refineEdgeRange: function(subd, source, computeSubdivideMid, start, stop, step) {
       const src = source.v.positionBuffer();
       const dest = subd.v.positionBuffer();
       const destV = subd.v;
@@ -62,7 +62,7 @@ const loop = {
       const attr = source.createAttributeInterpolator();
 
       let offset = source.v.lengthPt();
-      for (let [wEdge, left, right] of hEdges.rangeIter(start,stop)) {
+      for (let [wEdge, left, right] of hEdges.rangeIter(start,stop,step)) {
          const leftV = hEdges.origin(left);
          const rightV = hEdges.origin(right);
          let valence = 6;                    // no boundary, valence === 6
@@ -135,7 +135,7 @@ const loop = {
     * (V.3) New smooth vertex points – the average (1 − nβn )V + βn n · T ,
     * (v.4) New blended vertex points – the linear interpolation of point rules (V.2) and (V.3) with weight σ̄ ∈ (0, 1),
     */
-   refineVertexRange: function(subd, source, computeSubdividehEdge, start, stop) {
+   refineVertexRange: function(subd, source, computeSubdividehEdge, start, stop, step) {
       const src = source.v.positionBuffer();
       const dest = subd.v.positionBuffer();
       const srchEdges = source.h;
@@ -143,7 +143,7 @@ const loop = {
 
       const pt = [0, 0, 0];
       // copy over and setup hEdge pointer
-      for (let vertex of srcV.rangeIter(start, stop)) {
+      for (let vertex of srcV.rangeIter(start, stop, step)) {
          const valence = srcV.valence(vertex);
          let crease = srcV.crease(vertex);
          if (crease < 0) {             // corner, don't change
@@ -198,19 +198,19 @@ const loop = {
    },
 
    refineEdge: function(data) {
-      this.refineEdgeRange(gObj.subd, gObj.source, triMesh.computeSubdivideMid, data.start, data.stop);
+      this.refineEdgeRange(gObj.subd, gObj.source, triMesh.computeSubdivideMid, data.start, data.stop, data.step);
    },
 
    refineVertex: function(data) {
-      this.refineVertexRange(gObj.subd, gObj.source, triMesh.computeSubdividehEdge, data.start, data.stop);
+      this.refineVertexRange(gObj.subd, gObj.source, triMesh.computeSubdividehEdge, data.start, data.stop, data.step);
    },
 
    subdivideFace: function(data) {
-      this.subdivideFaceRange(gObj.subd, gObj.source, data.start, data.stop);
+      this.subdivideFaceRange(gObj.subd, gObj.source, data.start, data.stop, data.step);
    },
 
    subdivideHole: function(data) {
-      this.subdivideHoleRange(gObj.subd, gObj.source, data.start, data.stop);
+      this.subdivideHoleRange(gObj.subd, gObj.source, data.start, data.stop, data.step);
    },
 
    // subdivideFace and related functions
@@ -247,14 +247,14 @@ const loop = {
    /**
     each face divide to 4 face, wEdge*3,
    */
-   subdivideFaceRange: function(subd, source, start, stop) {
+   subdivideFaceRange: function(subd, source, start, stop, step) {
       const srcH = source.h;
       const subdH = subd.h;
       const subdF = subd.f;
 
       const wEdgeOffset = srcH.lengthW() * 2;        // original wEdge expand by *2
       const offset = source.v.length();
-      for (let face of source.f.rangeIter(start, stop)) {
+      for (let face of source.f.rangeIter(start, stop, step)) {
          let material = source.f.material(face);
          // 1 grow to 4.
          let srcEdge = face * 3;

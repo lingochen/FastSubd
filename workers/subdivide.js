@@ -96,13 +96,13 @@ async function subdivide(type, source) {
          // push message;
          resultList.push( message.data );
       }
-      async function processing(fn, blockSize, allEnd) {
-         let start = 0;
-         while (start < allEnd) {
+      async function processing(fn, allEnd, step) {
+         if (!step) {
+            step = Math.min(allEnd, computeList.length);
+         }
+         for (let start = 0; start < step; ++start) {
             let worker = await getWorker();
-            let end = Math.min(allEnd, start+blockSize);
-            worker.postMessage({fn: fn, start: start, stop: end});
-            start = end;
+            worker.postMessage({fn: fn, start: start, stop: allEnd, step: step});
          }
       }
 
@@ -116,18 +116,15 @@ async function subdivide(type, source) {
       }
 
       // add/refine middle edge points.
-      let blockSize = 256*4;
-      await processing("refineEdge", blockSize, source.h.lengthW());
+      await processing("refineEdge", source.h.lengthW());
 
       // copy and setup vertex's hEdge
-      blockSize = 256*4;
-      await processing("refineVertex", blockSize, source.v.length());
+      await processing("refineVertex", source.v.length());
 
       // fixed-up the wEdges, Faces, and vertex connection.
-      blockSize = 256*4;
-      await processing("subdivideFace", blockSize, source.f.length());
-      blockSize = source.h.length();
-      await processing("subdivideHole", blockSize, source.h.length());
+      await processing("subdivideFace", source.f.length());
+
+      await processing("subdivideHole", source.h.length(), 1);
 
       // wait for all workers finished.
       if (workerList.length < computeList.length) {

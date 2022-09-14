@@ -97,12 +97,12 @@ class DirectedEdgeArray extends HalfEdgeAttributeArray {
    }
     
    *[Symbol.iterator] () {
-      yield* this.rangeIter(0, this._wEdges.left.length());
+      yield* this.rangeIter(0, this._wEdges.left.length(), 1);
    }
 
-   * rangeIter(start, stop) {
+   * rangeIter(start, stop, step) {
       stop = Math.min(this._wEdges.left.length(), stop);
-      for (let i = start; i < stop; ++i) {
+      for (let i = start; i < stop; i+=step) {
          // if (!isFree) {
          const left = this._wEdges.left.get(i, 0);
          yield [i, left, this.pair(left)];
