@@ -14,7 +14,11 @@
 
 - <s>investigated reconsider how to represent attributes.</s> @done, (2022/08/10)[no change](uv_texcoord.md)
 
-- <s>webworker parallel subidivision support. </s> @done, (2002/09/10)[no change](multithread.md)
+- <s>webworker parallel subidivision support. </s> @done, (2002/09/10)[no change for now](multithread.md)
+
+- More file formats support.
+
+- Complete PBR material support and rendering.
 
 - Displaced Subdivision Surface.
 
