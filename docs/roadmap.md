@@ -14,7 +14,9 @@
 
 - <s>investigated reconsider how to represent attributes.</s> @done, (2022/08/10)[no change](uv_texcoord.md)
 
-- <s>webworker parallel subidivision support. </s> @done, (2002/09/10)[no change for now](multithread.md)
+- <s>webworker parallel subidivision support. </s> @done, (2022/09/10)[no change for now](multithread.md)
+
+- experiment using wasm to do parallel subdivision.
 
 - More file formats support.
 
